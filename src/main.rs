@@ -2,6 +2,7 @@ use std::{fs::{File}, io::{Write, BufReader, BufRead}, collections::HashMap, pro
 
 use anyhow::{Context, anyhow};
 use colored::*;
+use image::GenericImageView;
 use walkdir::WalkDir;
 
 fn main() -> anyhow::Result<()> {
@@ -105,6 +106,15 @@ fn traverse_root_dir_and_make_project_map(app_config: &AppConfig) -> HashMap<Str
         let extension = entry_path.extension().unwrap_or_default().to_str().unwrap_or_default();
 
         if app_config.relevant_extensions.contains(&extension) {
+            if extension == "png" {
+                // check if the aspect ratio is bigger than 0.7 or smaller than 1.3
+                let img = image::open(entry_path).unwrap();
+                let (width, height) = img.dimensions();
+                let aspect_ratio = width as f32 / height as f32;
+                if aspect_ratio < 0.75 || aspect_ratio > 1.25 {
+                    continue;
+                }
+            }
             let name = entry_path.file_stem().unwrap_or_default().to_str().unwrap_or_default();
             let img = Img {
                 name: name.to_owned(),
@@ -637,7 +647,7 @@ impl AppConfig {
             font_awesome_css_default_file_dir: font_awesome_default_css_dir.to_owned(),
             font_awesome_css_default_absolute_file_path: font_awesome_default_css_dir + "/font-awesome.css",
             selected_font_awesome_css_absolute_file_path: String::new(),
-            relevant_extensions: vec!["svg"],
+            relevant_extensions: vec!["svg", "png"],
             irrelevant_dir_names: vec![
                     "bower_components",
                     "node_modules",
