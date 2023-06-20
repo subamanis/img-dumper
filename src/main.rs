@@ -148,7 +148,7 @@ fn get_javascript_string(projects_names: &Vec<String>) -> String {
         parent_project_area_div = ul.parentElement;
         li = ul.getElementsByTagName('li');
         for (i = 0; i < li.length; i++) {{
-            let span = li[i].getElementsByTagName('span')[0];
+            let span = li[i].getElementsByTagName('span')[1];
             txtValue = span.textContent || span.innerText;
             if (txtValue.toUpperCase().indexOf(filter) > -1) {{
                 li[i].style.display = '';
@@ -189,13 +189,13 @@ fn generate_html_page_as_string(
 
     if !sp_icons_class_names.is_empty() {
         let sp_icons_html_string = generate_html_string_from_classes("SP ICONS", &app_config.selected_sp_icons_css_absolute_file_path,
-         "sp-icons", "sp-icons-", &sp_icons_class_names);
+         "sp-icons", "sp-icons-", "svg", &sp_icons_class_names);
         html += &sp_icons_html_string;
     }
 
     if !font_awesome_class_names.is_empty() {
         let font_awesome_html_string = generate_html_string_from_classes("FONT AWESOME", &app_config.selected_font_awesome_css_absolute_file_path,
-         "fa", "fa-", &font_awesome_class_names);
+         "fa", "fa-", "svg", &font_awesome_class_names);
         html += &font_awesome_html_string;
     }
 
@@ -211,10 +211,13 @@ fn generate_html_page_as_string(
 
         for (i, image) in curr_project_dir.images.iter().enumerate() {
         html += &format!("<li class='image-container' title='{}'>
+                            <div class='extension-stamp color-{}'>
+                                <span>{}</span>
+                            </div>
                             <img src=\"{}\" alt=\"{}\" />
                             <span>{}</span>
                         </li>
-                    ", image.path, image.path, i, image.name);
+                    ", image.path, image.extension, image.extension, image.path, i, image.name);
         }
 
         html += "</ul></div>";
@@ -246,6 +249,7 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
             top: 0;
             background-color: #d3d3d3;
             padding: 7px;
+            z-index: 1;
         }
 
         .search-container input {
@@ -296,10 +300,36 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
         }
 
         .image-container  {
-            width: 4.5em;
+            position: relative;
             display: flex;
             flex-direction: column;
             word-wrap: break-word;
+            width: 4.5em;
+        }
+
+        .extension-stamp {
+            display: none;
+            width: 1.8em;
+            height: 1em;
+            border-radius: 50%;
+            z-index: 1;
+            top: -10;
+            left: -6;
+            position: absolute;
+        }
+
+        .extension-stamp > span {
+            color: black !important;
+        }
+
+        .image-container:hover > .extension-stamp {display: block; }
+
+        .color-svg {
+            background-color: #e971e9;
+        }
+
+        .color-png {
+            background-color: #71e98d;
         }
 
         .image-container span {
@@ -329,7 +359,7 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
     css
 }
 
-fn generate_html_string_from_classes(section_title: &str, file_path: &str, extra_class: &str, class_prefix: &str, classes: &Vec<String>) -> String {
+fn generate_html_string_from_classes(section_title: &str, file_path: &str, extra_class: &str, class_prefix: &str, extension: &str, classes: &Vec<String>) -> String {
     let mut html = String::with_capacity(1000);
     html += &format!("<div class='project-area'>
                         <div class='flex-center'>
@@ -340,9 +370,12 @@ fn generate_html_string_from_classes(section_title: &str, file_path: &str, extra
     html += format!("<ul id='{}' class='images-area'>\n", extra_class.to_owned() + "-icons-list").as_str();
     for class in classes {
         html += &format!("<li class='image-container'>
+                            <div class='extension-stamp color-{}'>
+                                <span>{}</span>
+                            </div>
                             <i class='{} {}'></i>
                             <span>{}</span>
-                        </li>", extra_class, class, class.strip_prefix("sp-icons-").unwrap_or(class));
+                        </li>", extension, extension, extra_class, class, class.strip_prefix("sp-icons-").unwrap_or(class));
     }
     html.push_str("</ul></div>\n");
 
