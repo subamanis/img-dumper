@@ -3,11 +3,9 @@ name = "img-dumper"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 walkdir = "2.3.3"
-image = "0.24.6"
 colored = "2"
 anyhow = "1.0.71"
 dirs = "5.0.1"
+chrono = "0.4.26"

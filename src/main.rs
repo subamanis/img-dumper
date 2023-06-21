@@ -2,7 +2,7 @@ use std::{fs::{File}, io::{Write, BufReader, BufRead}, collections::HashMap, pro
 
 use anyhow::{Context, anyhow};
 use colored::*;
-use image::GenericImageView;
+use chrono::{DateTime, offset::{Utc, FixedOffset}};
 use walkdir::WalkDir;
 
 fn main() -> anyhow::Result<()> {
@@ -121,7 +121,7 @@ fn traverse_root_dir_and_make_project_map(app_config: &AppConfig) -> HashMap<Str
     project_dirs
 }
 
-fn get_javascript_string(projects_names: &Vec<String>) -> String {
+fn get_javascript_string() -> String {
     "<script>
     const inputElement = document.getElementById('search-input');
     inputElement.addEventListener('input', handleSearchChange);
@@ -200,15 +200,21 @@ fn generate_html_page_as_string(
             <label for='search-input'>Search:</label>
             <input id='search-input' name='search-input'>
         </div>
-        <div class='flex-center'>";
-    for extension in &app_config.relevant_extensions {
-        html += &format!(
-        "<div class='checkbox-item'>
-            <input type='checkbox' id='checkbox-{}' name='checkbox-{}' onchange='handleCheckboxChange(event)' checked>
-            <label for='checkbox-{}'>{}</label>
-        </div>", extension, extension, extension, extension);
-    }
-    html += "</div></div>";
+        <div class='flex-center flex-1'>";
+        for extension in &app_config.relevant_extensions {
+            html += &format!(
+            "<div class='checkbox-item'>
+                <input type='checkbox' id='checkbox-{}' name='checkbox-{}' onchange='handleCheckboxChange(event)' checked>
+                <label for='checkbox-{}'>{}</label>
+            </div>", extension, extension, extension, extension);
+        }
+    html += &format!(
+    "   </div>
+            <div class='date-marker-area'>
+                <span>Generated at:</span>
+                <span>{}</span>
+            </div>
+    </div>", app_config.exec_date_time.format("%d/%m/%Y - %H:%M:%S").to_string());
 
     if !sp_icons_class_names.is_empty() {
         let sp_icons_html_string = generate_html_string_from_classes("sp-icons", &app_config.selected_sp_icons_css_absolute_file_path,
@@ -251,7 +257,7 @@ fn generate_html_page_as_string(
 
     html += "</body>";
     html += &get_css_string(&sp_icons_css_string, &font_awesome_css_string);
-    html += &get_javascript_string(sorted_project_names);
+    html += &get_javascript_string();
     html += "</html>";
 
     html
@@ -311,6 +317,19 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
             cursor: pointer;
         }
 
+        .date-marker-area span:first-child {
+            color: #3a3a3a;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+
+        .date-marker-area span:last-child {
+            border: #fafafa; 
+            border-style: inset; 
+            padding: 0.1em; 
+            border-radius-top: 5px; 
+        }
+
         .name-arrow-container {
             cursor: pointer;
             display: flex;
@@ -347,6 +366,10 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
         .flex-center {
             display: flex;
             align-items: center;
+        }
+
+        .flex-1 {
+            flex: 1;
         }
 
         .margin-right-05 {
@@ -575,6 +598,7 @@ fn get_htdocs_path() -> Option<String> {
             }
         }
         "linux" => {
+            //var/www/html
             let default_path_str = "/opt/lampp/htdocs";
             let xampp_htdocs_path = PathBuf::from("/opt/lampp/htdocs");
             if xampp_htdocs_path.exists() {
@@ -623,6 +647,8 @@ fn write_to_file(contents: String, app_config: &AppConfig) -> anyhow::Result<()>
 
 #[derive(Debug)]
 struct AppConfig {
+    pub exec_date_time: DateTime<FixedOffset>,
+
     // folder that contains the projects in which we want to search for Icons. By default it is the path to htdocs
     pub root_folder : String, 
 
@@ -750,6 +776,7 @@ impl AppConfig {
         let font_awesome_default_css_dir = root_folder.clone() + "/mega-commons-angular-js" + font_awesome_relative_file_dir.clone();
 
         Ok (Self { 
+            exec_date_time: Utc::now().with_timezone(&FixedOffset::east_opt(3 * 3600).unwrap()),
             root_folder: root_folder.clone(),
             output_file_name,
             output_file_path,
