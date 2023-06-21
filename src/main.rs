@@ -598,11 +598,11 @@ fn get_htdocs_path() -> Option<String> {
             }
         }
         "linux" => {
-            //var/www/html
-            let default_path_str = "/opt/lampp/htdocs";
-            let xampp_htdocs_path = PathBuf::from("/opt/lampp/htdocs");
-            if xampp_htdocs_path.exists() {
-                return Some(default_path_str.to_owned());
+            for path_str in ["/opt/lampp/htdocs", "/var/www/html"] {
+                let xampp_htdocs_path = PathBuf::from(path_str);
+                if xampp_htdocs_path.exists() {
+                    return Some(path_str.to_owned());
+                }
             }
         }
         _ => {return None}
