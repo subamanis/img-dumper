@@ -1,9 +1,16 @@
+mod message_printer;
+
 use std::{fs::{File}, io::{Write, BufReader, BufRead}, collections::HashMap, process::Command, path::{PathBuf, Path}, env, time::Instant};
 
 use anyhow::{Context, anyhow};
 use colored::*;
 use chrono::{DateTime, offset::{Utc, FixedOffset}};
 use walkdir::WalkDir;
+
+use message_printer::*;
+
+// Application version, to be displayed at startup and on the webpage
+pub const VERSION_ID : &str = "v1.0.0"; 
 
 fn main() -> anyhow::Result<()> {
     let instant = Instant::now();
@@ -12,8 +19,19 @@ fn main() -> anyhow::Result<()> {
     #[cfg(target_os = "windows")]
     control::set_virtual_terminal(true).unwrap();
 
-    let mut app_config = AppConfig::init()?;
-    println!("Root folder: {}\n", app_config.root_folder);
+    println!("img-dumper {}\n", VERSION_ID);
+
+    let program_args = parse_args()?;
+    let program_args = match program_args {
+        Some(value) => value,
+        None => {
+            message_printer::print_whole_help_message();
+            return Ok(());
+        }
+    };
+
+    let mut app_config = AppConfig::init(program_args)?;
+    println!("Root folder: {}\n", app_config.root_dir);
 
     print!("Parsing projects... ");
     let mut projects_map = traverse_root_dir_and_make_project_map(&app_config);
@@ -23,6 +41,7 @@ fn main() -> anyhow::Result<()> {
     } else {
         println!("{} ({} found)", "OK".green(), projects_map.len());
     }
+    projects_map.values_mut().for_each(|f| f.images.sort_by(|a, b| a.name.cmp(&b.name)));
     let mut sorted_project_names: Vec<String> = projects_map.keys().into_iter().map(|k| k.clone()).collect();
     sorted_project_names.sort();
 
@@ -69,7 +88,7 @@ fn traverse_root_dir_and_make_project_map(app_config: &AppConfig) -> HashMap<Str
     let mut images = vec![];
     let mut project_dir = &mut ProjectDir::default();
 
-    for entry in WalkDir::new(&app_config.root_folder)
+    for entry in WalkDir::new(&app_config.root_dir)
             .follow_links(true)
             .into_iter()
             .filter_entry(|e| {
@@ -611,9 +630,80 @@ fn get_htdocs_path() -> Option<String> {
     None
 }
 
+fn parse_args() -> anyhow::Result<Option<CommandLineArgs>> {
+    let line = env::args().skip(1).collect::<Vec<String>>().join(" ");
+    let mut commands = line.split("--");
+
+    if line.trim().starts_with("--") {
+        //ignoring the empty first element that is caused by splitting
+        commands.next();
+    }
+
+    let (mut dir, mut target, mut name) = (None, None, None);
+    for command in commands {
+        let (command_name, arguments) = match command.find(" ") {
+            Some(index) => command.split_at(index),
+            None => (command.trim(), "")
+        };
+        if command_name == DIR {
+            let mut path = arguments.trim().replace("\\", "/");
+            path = path.strip_prefix('"').unwrap_or(&path).strip_suffix('"').unwrap_or(&path).to_owned();
+            if path.is_empty() {
+                message_printer::print_help_message_for_command(DIR);
+                return Err(anyhow!("No argument provided for --dir".red()));
+            }
+            dir = Some(path);
+        } else if command_name == TARGET {
+            let path = arguments.trim();
+            if path.is_empty() {
+                message_printer::print_help_message_for_command(TARGET);
+                return Err(anyhow!("No argument provided for --target".red()));
+            }
+            target = Some(path.to_owned());
+        } else if command_name == NAME {
+            let _name = arguments.trim();
+            if _name.is_empty() {
+                message_printer::print_help_message_for_command(NAME);
+                return Err(anyhow!("No argument provided for --name".red()));
+            }
+            name = Some(_name.to_owned());
+        } else if command_name == HELP {
+            return Ok(None);
+        } else if !command_name.trim().is_empty() {
+            return Err(anyhow!(format!("Unknown command: {}", command_name).red()));
+        }
+    }
+
+    let program_args = CommandLineArgs { dir, target, name };
+
+    Ok(Some(program_args))
+}
+
+pub fn get_trimmed_if_not_empty(str: &str) -> Option<String> {
+    let str = str.trim();
+    if str.is_empty() {None}
+    else {Some(str.to_owned())}
+}
+
 fn join_paths(base_absolute_path: &str, relative_path: &str, connective_str: &str) -> String {
     let concated = format!("{}{}{}", base_absolute_path, connective_str, relative_path);
     concated.replace("\\", "/").to_owned()
+}
+
+fn convert_to_absolute(s: &str) -> String {
+    let p = Path::new(s);
+    if p.is_absolute() {
+        return s.replace("\\", "/");
+    }
+
+    // The "canonicalize" function, (at least on windows) seems to put the weird prefix
+    // "\\?\" before the path and it also puts forward slashes that we want to convert for compatibility.  
+    if let Ok(buf) = std::fs::canonicalize(p) {
+        let str_path = buf.to_str().unwrap();
+        str_path.strip_prefix(r"\\?\").unwrap_or(str_path).replace("\\", "/")
+    } else {
+        s.replace("\\", "/")
+    }
 }
 
 fn open_generated_file_in_the_browser(app_config: &AppConfig) {
@@ -640,43 +730,46 @@ fn open_generated_file_in_the_browser(app_config: &AppConfig) {
 }
 
 fn write_to_file(contents: String, app_config: &AppConfig) -> anyhow::Result<()>{
-    let mut file = File::create(&app_config.output_file_path).map_err(|_| anyhow!("Failed to create test.html"))?;
-    file.write_all(contents.as_bytes()).context("Failed to write to file")?;
+    let mut file = File::create(&app_config.output_file_path).map_err(|_| anyhow!("Failed to create the .html file".red()))?;
+    file.write_all(contents.as_bytes()).context("Failed to write to file".red())?;
     Ok(())
 }
 
 #[derive(Debug)]
 struct AppConfig {
+    pub command_line_args: CommandLineArgs,
+
+    // the date and time when the program was executed and the html file was generated
     pub exec_date_time: DateTime<FixedOffset>,
 
     // folder that contains the projects in which we want to search for Icons. By default it is the path to htdocs
-    pub root_folder : String, 
+    pub root_dir : String, 
 
     // name of the file that will be generated
     pub output_file_name : String,
 
-    // full path of generated file - created automatically from the output_file_name
+    // full path of generated file
     pub output_file_path : String,
 
     // path to the directory that contains the sp-icons css file
     pub sp_icons_css_default_file_dir : String,
 
-    // full path of the sp-icons css file
+    // default path of the sp-icons css file
     pub sp_icons_css_default_absolute_file_path : String,
 
-    // the absolute file path that was used for parsing
+    // the file path that was used for parsing the sp icons css file
     pub selected_sp_icons_css_absolute_file_path : String,
 
-    // relative path to file, from inside the project folder
+    // relative path to sp icons css file, from inside the project folder
     pub font_awesome_css_relative_file_path : String,
 
     // path to the directory that contains the font-awesome css file
     pub font_awesome_css_default_file_dir : String,
 
-    // full path of the font-awesome css file
+    // default path of the font-awesome css file
     pub font_awesome_css_default_absolute_file_path : String,
 
-    // the absolute file path that was used for parsing
+    // the absolute file path that was used for parsing the font-awesome css file
     pub selected_font_awesome_css_absolute_file_path : String,
 
     // names of folders that should be ignored in each project, like node_modules, bower_components, ...
@@ -698,6 +791,13 @@ struct Img {
     pub name: String,
     pub path: String,
     pub extension: String,
+}
+
+#[derive(Debug, Default)]
+struct CommandLineArgs {
+    pub dir: Option<String>,
+    pub target: Option<String>,
+    pub name: Option<String>,
 }
 
 enum SpecialFileType {
@@ -743,41 +843,57 @@ impl SpecialFileType {
 }
 
 impl AppConfig {
-    pub fn init() -> anyhow::Result<Self> {
-        let command_args: String = env::args().skip(1).collect::<Vec<String>>().join(" ");
-        let root_folder = {
-            if !command_args.trim().is_empty() {
-                let command_args_buf = PathBuf::from(&command_args);
-                if !command_args_buf.exists() {
-                    return Err(anyhow!("The provided path doesn't appear to be valid.".red()));
-                }
-                command_args
+    pub fn init(args: CommandLineArgs) -> anyhow::Result<Self> {
+        let root_dir = {
+            if let Some(dir) = &args.dir {
+                dir.clone()
             } else {
-                get_htdocs_path().context("Default htdocs path not found on your system. Provide a root folder manually as a command line argument.".red())?
+                if let Some(x) = get_htdocs_path() {
+                    x
+                } else {
+                    return Err(anyhow!("Unable to find htdocs folder and no custom root directory provided".red()));
+                }
             }
         };
+        let root_dir = convert_to_absolute(&root_dir);
 
-        let output_file_name = "icons_report_generated.html".to_owned();
-        let desktop_dir = dirs::desktop_dir();
-        let mut output_file_path: PathBuf;
-        if let Some(dir) = desktop_dir {
-            output_file_path = dir;
-        } else {
-            output_file_path = Path::new(".").to_path_buf();
+        if !Path::new(&root_dir).exists() {
+            return Err(anyhow!(format!("The (root) directory '{}' does not exist", root_dir).red()));
         }
-        output_file_path.push(&output_file_name.clone());
-        let output_file_path = match output_file_path.to_str() {
-            Some(path) => path.to_owned(),
-            None => return Err(anyhow!("Unable to convert output file path to string")),
-        };
 
-        let sp_icons_default_css_file_dir = root_folder.clone() + "/mega-commons-angular-js/assets/fonts/sp-icons";
+        let mut output_file_name = 
+            if let Some(name) = &args.name {
+                name.to_owned()
+            } else {
+                "icons_report_generated".to_owned()
+            };
+        output_file_name.push_str(".html");
+
+        let output_file_path =
+            if let Some(target) = &args.target {
+                let path = PathBuf::from(target);
+                if !path.is_dir() {
+                    return Err(anyhow!(format!("The target '{}' is not a directory", target).red()));
+                }
+                path
+            } else {
+                let desktop_dir = dirs::desktop_dir();
+                if let Some(dir) = desktop_dir {
+                    dir
+                } else {
+                    Path::new(".").to_path_buf()
+                }
+            };
+        let output_file_path = convert_to_absolute(&join_paths(&output_file_path.to_string_lossy(), &output_file_name, "/"));
+
+        let sp_icons_default_css_file_dir = root_dir.clone() + "/mega-commons-angular-js/assets/fonts/sp-icons";
         let font_awesome_relative_file_dir = "/bower_components/components-font-awesome/css";
-        let font_awesome_default_css_dir = root_folder.clone() + "/mega-commons-angular-js" + font_awesome_relative_file_dir.clone();
+        let font_awesome_default_css_dir = root_dir.clone() + "/mega-commons-angular-js" + font_awesome_relative_file_dir.clone();
 
         Ok (Self { 
+            command_line_args: args,
             exec_date_time: Utc::now().with_timezone(&FixedOffset::east_opt(3 * 3600).unwrap()),
-            root_folder: root_folder.clone(),
+            root_dir,
             output_file_name,
             output_file_path,
             sp_icons_css_default_file_dir: sp_icons_default_css_file_dir.clone(),
