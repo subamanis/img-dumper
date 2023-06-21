@@ -106,15 +106,6 @@ fn traverse_root_dir_and_make_project_map(app_config: &AppConfig) -> HashMap<Str
         let extension = entry_path.extension().unwrap_or_default().to_str().unwrap_or_default();
 
         if app_config.relevant_extensions.contains(&extension) {
-            if extension == "png" {
-                // check if the aspect ratio is bigger than 0.7 or smaller than 1.3
-                let img = image::open(entry_path).unwrap();
-                let (width, height) = img.dimensions();
-                let aspect_ratio = width as f32 / height as f32;
-                if aspect_ratio < 0.75 || aspect_ratio > 1.25 {
-                    continue;
-                }
-            }
             let name = entry_path.file_stem().unwrap_or_default().to_str().unwrap_or_default();
             let img = Img {
                 name: name.to_owned(),
@@ -131,43 +122,66 @@ fn traverse_root_dir_and_make_project_map(app_config: &AppConfig) -> HashMap<Str
 }
 
 fn get_javascript_string(projects_names: &Vec<String>) -> String {
-    let mut all_names = projects_names.clone();
-    all_names.append(vec!["sp-icons".to_string(), "fa".to_string()].as_mut());
-    let mut js_html = "<script>
+    "<script>
     const inputElement = document.getElementById('search-input');
     inputElement.addEventListener('input', handleSearchChange);
 
-    function handleSearchChange() {{
-        var input, filter, ul, li, a, i, txtValue;
+    function handleSearchChange() {
+        let input, filter, uls, lis, a, i, span, txtValue;
         input = document.getElementById('search-input');
         filter = input.value.toUpperCase();
-        let relevant_lis_count = 0;".to_owned();
-    for name in all_names {
-        js_html.push_str(&format!("
-        ul = document.getElementById('{}-icons-list');
-        parent_project_area_div = ul.parentElement;
-        li = ul.getElementsByTagName('li');
-        for (i = 0; i < li.length; i++) {{
-            let span = li[i].getElementsByTagName('span')[1];
-            txtValue = span.textContent || span.innerText;
-            if (txtValue.toUpperCase().indexOf(filter) > -1) {{
-                li[i].style.display = '';
-                relevant_lis_count += 1;
-            }} else {{
-                li[i].style.display = 'none';
-            }}
-        }}
-        if (relevant_lis_count == 0) {{
-            parent_project_area_div.style.display = 'none';
-        }} else {{
-            parent_project_area_div.style.display = 'block';
-        }}
-        relevant_lis_count = 0;
-        ", name));
+        let relevant_lis_count = 0;
+        uls = document.getElementsByTagName('ul');
+        for (ul of uls) {
+            parent_project_area_div = ul.parentElement;
+            lis = ul.getElementsByTagName('li');
+            for (i = 0; i < lis.length; i++) {
+                span = lis[i].getElementsByTagName('span')[1];
+                txtValue = span.textContent || span.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    lis[i].style.display = '';
+                    relevant_lis_count += 1;
+                } else {
+                    lis[i].style.display = 'none';
+                }
+            }
+            if (relevant_lis_count == 0) {
+                parent_project_area_div.style.display = 'none';
+            } else {
+                parent_project_area_div.style.display = 'block';
+            }
+            relevant_lis_count = 0;
+        }
     }
-    js_html.push_str("}} </script>");
 
-    js_html
+    function toggleProjectArea($event) {
+        let element = $event.currentTarget;
+        let downChild = element.querySelector('span.down');
+        let upChild = element.querySelector('span.up');
+        let ul = element.parentElement.parentElement.querySelector('ul.images-area');
+        console.log('ul: ', ul);
+
+        // down arrow is showing in the beginning
+        if (getComputedStyle(downChild).display !== 'none') {
+            downChild.style.display = 'none';
+            ul.style.display = 'none';
+        } else {
+            downChild.style.display = '';
+            ul.style.display = '';
+        }
+
+        if (getComputedStyle(upChild).display !== 'none') {
+            upChild.style.display = 'none';
+        } else {
+            upChild.style.display = '';
+        }
+    } 
+
+    function handleCheckboxChange($event) {
+        
+    }
+
+    </script>".to_owned()
 }
 
 fn generate_html_page_as_string(
@@ -178,36 +192,48 @@ fn generate_html_page_as_string(
         font_awesome_class_names: &Vec<String>,
         font_awesome_css_string: &String,
         app_config: &AppConfig) -> String {
-    let mut html = String::from("<html> <head> <title>Spectre icons</title> </head> <body>");
+    let mut html = String::from("<html lang='en'> <head> <title>Spectre icons</title> </head> <body>");
     
-    html += "<div class='search-container'>
-                <div>
-                    <label for='search-input'>Search:</label>
-                    <input id='search-input' name='search-input'>
-                </div>
-            </div>";
+    html += 
+    "<div class='search-container'>
+        <div>
+            <label for='search-input'>Search:</label>
+            <input id='search-input' name='search-input'>
+        </div>
+        <div class='flex-center'>";
+    for extension in &app_config.relevant_extensions {
+        html += &format!(
+        "<div class='checkbox-item'>
+            <input type='checkbox' id='checkbox-{}' name='checkbox-{}' onchange='handleCheckboxChange(event)' checked>
+            <label for='checkbox-{}'>{}</label>
+        </div>", extension, extension, extension, extension);
+    }
+    html += "</div></div>";
 
     if !sp_icons_class_names.is_empty() {
-        let sp_icons_html_string = generate_html_string_from_classes("SP ICONS", &app_config.selected_sp_icons_css_absolute_file_path,
+        let sp_icons_html_string = generate_html_string_from_classes("sp-icons", &app_config.selected_sp_icons_css_absolute_file_path,
          "sp-icons", "sp-icons-", "svg", &sp_icons_class_names);
         html += &sp_icons_html_string;
     }
 
     if !font_awesome_class_names.is_empty() {
-        let font_awesome_html_string = generate_html_string_from_classes("FONT AWESOME", &app_config.selected_font_awesome_css_absolute_file_path,
+        let font_awesome_html_string = generate_html_string_from_classes("font-awesome", &app_config.selected_font_awesome_css_absolute_file_path,
          "fa", "fa-", "svg", &font_awesome_class_names);
         html += &font_awesome_html_string;
     }
 
     for project_name in sorted_project_names {
-        let id = project_name.clone() + "-icons-list";
         let curr_project_dir = project_dirs.get(project_name).unwrap();
         html += &format!("<div class='project-area'>
                             <div class='flex-center'>
-                                <h1 class='title margin-right-05'>{}</h1>
+                                <div class='name-arrow-container' onclick='toggleProjectArea(event)'>
+                                    <span class='down arrow-utf-8'>&#9660</span>
+                                    <span class='up arrow-utf-8' style='display: none'>&#9650</span>
+                                    <h1 class='title margin-right-05'>{}</h1>
+                                </div>
                                 <span>({})</span>
                             </div>
-                            <ul id='{}' class='images-area'>", project_name, curr_project_dir.path, id);
+                            <ul class='images-area'>", project_name, curr_project_dir.path);
 
         for (i, image) in curr_project_dir.images.iter().enumerate() {
         html += &format!("<li class='image-container' title='{}'>
@@ -244,12 +270,15 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
         }
 
         .search-container {
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
             position: sticky;
             top: 0;
-            background-color: #d3d3d3;
-            padding: 7px;
             z-index: 1;
+            display: flex;
+            align-items: center;
+            column-gap: 3em;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+            background-color: #d3d3d3;
+            padding: 6px;
         }
 
         .search-container input {
@@ -259,6 +288,43 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
             border-radius: 3px;
             border: none;
             box-shadow: 0 0 3px rgba(0, 0, 0, 0.4);
+        }
+
+        .checkbox-item {
+            display: flex;
+            width: fit-content; 
+            align-items: center; 
+            column-gap: 0.2em;
+            cursor: pointer;
+        }
+
+        .checkbox-item ~ .checkbox-item {
+            margin-left: 0.8em;
+        }
+
+        .checkbox-item input {
+            width: 1em;
+            cursor: pointer;
+        }
+
+        .checkbox-item label {
+            cursor: pointer;
+        }
+
+        .name-arrow-container {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        .arrow-utf-8 {
+            font-size: 0.8em;
+            margin-top: 0.6em;
+            padding: 0.5em;
+        }
+
+        span.up.arrow-utf-8 {
+            color: #1fbc1f;
         }
 
         .sp-icons {
@@ -363,11 +429,15 @@ fn generate_html_string_from_classes(section_title: &str, file_path: &str, extra
     let mut html = String::with_capacity(1000);
     html += &format!("<div class='project-area'>
                         <div class='flex-center'>
-                            <h1 class='title margin-right-05'>{}</h1>
+                            <div class='name-arrow-container' onclick='toggleProjectArea(event)'>
+                                <span class='down arrow-utf-8'>&#9660</span>
+                                <span class='up arrow-utf-8' style='display: none'>&#9650</span>
+                                <h1 class='title margin-right-05'>{}</h1>
+                            </div>
                             <span>({}) ---- class names are normally prefixed with `{}`</span>
                         </div>", section_title, file_path, class_prefix);
 
-    html += format!("<ul id='{}' class='images-area'>\n", extra_class.to_owned() + "-icons-list").as_str();
+    html += "<ul class='images-area'>\n";
     for class in classes {
         html += &format!("<li class='image-container'>
                             <div class='extension-stamp color-{}'>
@@ -375,7 +445,7 @@ fn generate_html_string_from_classes(section_title: &str, file_path: &str, extra
                             </div>
                             <i class='{} {}'></i>
                             <span>{}</span>
-                        </li>", extension, extension, extra_class, class, class.strip_prefix("sp-icons-").unwrap_or(class));
+                        </li>", extension, extension, extra_class, class, class.strip_prefix(class_prefix).unwrap_or(class));
     }
     html.push_str("</ul></div>\n");
 
@@ -495,7 +565,7 @@ fn get_htdocs_path() -> Option<String> {
             }
         }
         "linux" => {
-            let default_path_str = "/opt/lampp/htdocs"; //TODO: check
+            let default_path_str = "/opt/lampp/htdocs";
             let xampp_htdocs_path = PathBuf::from("/opt/lampp/htdocs");
             if xampp_htdocs_path.exists() {
                 return Some(default_path_str.to_owned());
