@@ -319,8 +319,13 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
 
         .arrow-utf-8 {
             font-size: 0.8em;
-            margin-top: 0.6em;
+            margin-top: 0.3em;
             padding: 0.5em;
+        }
+
+        .arrow-utf-8.up {
+            font-size: 1em;
+            padding: 0.4em;
         }
 
         span.up.arrow-utf-8 {
@@ -350,6 +355,11 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
 
         .project-area {
             margin-bottom: 20px;
+        }
+
+        .title {
+            margin-top: 0.3em;
+            margin-bottom: 0.3em;
         }
 
         .title+span {
