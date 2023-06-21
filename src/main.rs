@@ -548,6 +548,8 @@ fn parse_special_file(
        }
    }
 
+   class_names.sort();
+
    Ok(Some((class_names, content)))
 }
 
