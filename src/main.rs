@@ -315,7 +315,7 @@ fn generate_html_page_as_string(
         font_awesome_class_names: &Vec<String>,
         font_awesome_css_string: &String,
         app_config: &AppConfig) -> anyhow::Result<String> {
-    let mut html = String::from("<html lang='en'> <head> <title>Spectre icons</title> </head> <body>");
+    let mut html = String::from("<html lang='en'> <head> <title>Spectre icons</title> </head> <body> <div id='page-container'>");
     
     html += 
     "<div class='search-container'>
@@ -383,11 +383,11 @@ fn generate_html_page_as_string(
     }
 
     html += "
-    <div class='author-area'>
+    <footer class='author-area'>
         <span>Petros Papatheodorou 2023</span>
-    </div>";
+    </footer>";
     
-    html += "</body>";
+    html += "</div></body>";
     html += &get_css_string(&sp_icons_css_string, &font_awesome_css_string);
     html += &get_javascript_string(app_config);
     html += "</html>";
@@ -422,6 +422,11 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
         body {
             background-color: #f1f1f1;
             font-family: Arial, Helvetica, sans-serif;
+        }
+
+        #page-container {
+            position: relative;
+            min-height: 100vh;
         }
 
         ul {
@@ -650,12 +655,15 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
             margin-right: auto;
         }
         
-        .author-area {
+        footer.author-area {
+            position: absolute;
+            bottom: 10;
+            right: 0;
             display: flex;
             justify-content: right;
         }
 
-        .author-area span {
+        footer.author-area span {
             color: #818181;
             font-size: 0.9em;
             font-style: italic;
