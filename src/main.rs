@@ -490,7 +490,6 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
             border: #fafafa; 
             border-style: inset; 
             padding: 0.1em; 
-            border-radius-top: 5px; 
         }
 
         #copy-notification {
