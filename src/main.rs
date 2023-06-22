@@ -140,7 +140,8 @@ fn traverse_root_dir_and_make_project_map(app_config: &AppConfig) -> HashMap<Str
     project_dirs
 }
 
-fn get_javascript_string() -> String {
+fn get_javascript_string(app_config: &AppConfig) -> String {
+    let mut js = 
     "<script>
     const inputElement = document.getElementById('search-input');
     inputElement.addEventListener('input', handleSearchChange);
@@ -155,9 +156,11 @@ fn get_javascript_string() -> String {
             parent_project_area_div = ul.parentElement;
             lis = ul.getElementsByTagName('li');
             for (i = 0; i < lis.length; i++) {
-                span = lis[i].getElementsByTagName('span')[1];
-                txtValue = span.textContent || span.innerText;
-                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                extensionSpan = lis[i].getElementsByTagName('span')[0];
+                extensionValue = extensionSpan.textContent || extensionSpan.innerText;
+                nameSpan = lis[i].getElementsByTagName('span')[1];
+                nameValue = nameSpan.textContent || nameSpan.innerText;
+                if (nameValue.toUpperCase().indexOf(filter) > -1 && currentlySelectedExtensions.includes(extensionValue.toLowerCase())) {
                     lis[i].style.display = '';
                     relevant_lis_count += 1;
                 } else {
@@ -226,11 +229,71 @@ fn get_javascript_string() -> String {
         }
     } 
 
-    function handleCheckboxChange($event) {
-        
-    }
+    function handleCheckboxChange(event) {
+        const checkbox = event.currentTarget;
+        const checkboxValue = checkbox.value;
+        const isChecked = checkbox.checked;
+      
+        if (isChecked) {
+          currentlySelectedExtensions.push(checkboxValue);
+        } else {
+          currentlySelectedExtensions = currentlySelectedExtensions.filter(
+            (ext) => ext !== checkboxValue
+          );
+        }
+      
+        let relevant_lis_count = 0;
+        const uls = document.getElementsByTagName('ul');
 
-    </script>".to_owned()
+        inputFilter = document.getElementById('search-input').value.toUpperCase();
+
+        for (const ul of uls) {
+          const parent_project_area_div = ul.parentElement;
+          const lis = ul.getElementsByTagName('li');
+      
+          for (const li of lis) {
+            extensionSpan = li.getElementsByTagName('span')[0];
+            extensionValue = extensionSpan.textContent || extensionSpan.innerText;
+            nameSpan = li.getElementsByTagName('span')[1];
+            nameValue = nameSpan.textContent || nameSpan.innerText;
+
+            if (currentlySelectedExtensions.includes(extensionValue.toLowerCase()) && (!nameValue || nameValue.toUpperCase().indexOf(inputFilter) > -1)) {
+              if (window.getComputedStyle(li).display === 'none') {
+                li.style.display = '';
+              }
+              relevant_lis_count += 1;
+            } else {
+                if (window.getComputedStyle(li).display !== 'none') {
+                    li.style.display = 'none';
+                }
+            }
+          }
+      
+          if (relevant_lis_count === 0) {
+            parent_project_area_div.style.display = 'none';
+          } else {
+            parent_project_area_div.style.display = 'block';
+          }
+      
+          relevant_lis_count = 0;
+        }
+      }
+    ".to_owned();
+
+    let joined_values = app_config
+    .relevant_extensions
+    .iter()
+    .map(|value| format!("\"{}\"", value))
+    .collect::<Vec<String>>()
+    .join(",");
+
+    js.push_str(&format!("
+    let currentlySelectedExtensions = [{}];
+    ",joined_values));
+
+    js.push_str("</script>");
+
+    js
 }
 
 fn generate_html_page_as_string(
@@ -253,9 +316,9 @@ fn generate_html_page_as_string(
         for extension in &app_config.relevant_extensions {
             html += &format!(
             "<div class='checkbox-item'>
-                <input type='checkbox' id='checkbox-{}' name='checkbox-{}' onchange='handleCheckboxChange(event)' checked>
+                <input type='checkbox' id='checkbox-{}' name='checkbox-{}' value='{}' onchange='handleCheckboxChange(event)' checked>
                 <label for='checkbox-{}'>{}</label>
-            </div>", extension, extension, extension, extension);
+            </div>", extension, extension, extension, extension, extension);
         }
     html += &format!(
     "   </div>
@@ -311,7 +374,7 @@ fn generate_html_page_as_string(
 
     html += "</body>";
     html += &get_css_string(&sp_icons_css_string, &font_awesome_css_string);
-    html += &get_javascript_string();
+    html += &get_javascript_string(app_config);
     html += "</html>";
 
     html
