@@ -16,9 +16,6 @@ pub const VERSION_ID : &str = "v1.0.0";
 fn main() -> anyhow::Result<()> {
     let instant = Instant::now();
 
-    println!("1exists: {:?}\n",PathBuf::from("C:/xampp/htdocs/mega-commons-angular-js/bower_components/components-font-awesome/fonts/fontawesome-webfont.eot?v4.7.0").exists());
-    println!("2exists: {:?}\n",PathBuf::from("C:/xampp/htdocs/mega-commons-angular-js/bower_components/components-font-awesome/fonts/fontawesome-webfont.eot").exists());
-
     // Only on windows, it is required to enable a virtual terminal environment, so that the colors will display correctly
     #[cfg(target_os = "windows")]
     control::set_virtual_terminal(true).unwrap();
@@ -658,7 +655,7 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
         
         footer.author-area {
             position: absolute;
-            bottom: 10;
+            bottom: 0;
             right: 0;
             display: flex;
             justify-content: right;
@@ -731,10 +728,7 @@ fn parse_css_file(file_spec: &ParsableFileSpec, reader: BufReader<File>) -> anyh
             if let Some(index_end) = &line[relative_path_start..].find("')") {
                 let relative_path_end = relative_path_start + index_end;
                 let absolute_path = join_paths(&file_spec.selected_abs_dir.as_ref().unwrap(), &line[relative_path_start..relative_path_end], "/");
-                println!("absolute_path: {}", absolute_path);
-                println!("is file: {}", PathBuf::from(&absolute_path).exists());
                 line.replace_range(relative_path_start..relative_path_end, &absolute_path);
-                // println!("final line: {}\n", line);
                 start_index = relative_path_end + 2;
             } else {
                 break;
