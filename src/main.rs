@@ -45,28 +45,38 @@ fn main() -> anyhow::Result<()> {
     let mut sorted_project_names: Vec<String> = projects_map.keys().into_iter().map(|k| k.clone()).collect();
     sorted_project_names.sort();
 
-    print!("Parsing sp-icons... ");
-    let (sp_icons_class_names, sp_icons_css_string) =
-            match parse_special_file(SpecialFileType::SpIconsCss, &projects_map, &mut app_config)? {
-        Some((sp_icons_class_names, sp_icons_css_string)) => {
-            println!("{}", "OK".green());
-            (sp_icons_class_names, sp_icons_css_string)
-        },
-        None => {
-            println!("{}", "No sp-icons file found".yellow());
+    let (sp_icons_class_names, sp_icons_css_string) = {
+        if app_config.command_line_args.is_basic {
             (Vec::new(), String::new())
+        } else {
+            print!("Parsing sp-icons... ");
+            match parse_special_file(SpecialFileType::SpIconsCss, &projects_map, &mut app_config)? {
+                Some((sp_icons_class_names, sp_icons_css_string)) => {
+                    println!("{}", "OK".green());
+                    (sp_icons_class_names, sp_icons_css_string)
+                },
+                None => {
+                    println!("{}", "No sp-icons file found".yellow());
+                    (Vec::new(), String::new())
+                }
+            }       
         }
     };
-    print!("Parsing font-awesome... ");
-    let (font_awesome_class_names, font_awesome_css_string) =
-            match parse_special_file(SpecialFileType::FontAwesomeCss, &projects_map, &mut app_config)? {
-        Some((font_awesome_class_names, font_awesome_css_string)) => {
-            println!("{}", "OK".green());
-            (font_awesome_class_names, font_awesome_css_string)
-        },
-        None => {
-            println!("{}", "No font-awesome file found".yellow());
+    let (font_awesome_class_names, font_awesome_css_string) = {
+        if app_config.command_line_args.is_basic {
             (Vec::new(), String::new())
+        } else {
+            print!("Parsing font-awesome... ");
+            match parse_special_file(SpecialFileType::FontAwesomeCss, &projects_map, &mut app_config)? {
+                Some((font_awesome_class_names, font_awesome_css_string)) => {
+                    println!("{}", "OK".green());
+                    (font_awesome_class_names, font_awesome_css_string)
+                },
+                None => {
+                    println!("{}", "No font-awesome file found".yellow());
+                    (Vec::new(), String::new())
+                }
+            }
         }
     };
 
@@ -774,42 +784,48 @@ fn parse_args() -> anyhow::Result<Option<CommandLineArgs>> {
         commands.next();
     }
 
-    let (mut dir, mut target, mut name) = (None, None, None);
+    let (mut dir, mut target, mut name, mut is_basic) = (None, None, None, false);
     for command in commands {
         let (command_name, arguments) = match command.find(" ") {
             Some(index) => command.split_at(index),
             None => (command.trim(), "")
         };
-        if command_name == DIR {
+        if command_name == Argument::Dir.get_name() {
             let mut path = arguments.trim().replace("\\", "/");
             path = path.strip_prefix('"').unwrap_or(&path).strip_suffix('"').unwrap_or(&path).to_owned();
             if path.is_empty() {
-                message_printer::print_help_message_for_command(DIR);
+                println!("{}", Argument::Dir.get_help_msg());
                 return Err(anyhow!("No argument provided for --dir".red()));
             }
             dir = Some(path);
-        } else if command_name == TARGET {
+        } else if command_name == Argument::Target.get_name() {
             let path = arguments.trim();
             if path.is_empty() {
-                message_printer::print_help_message_for_command(TARGET);
+                println!("{}", Argument::Target.get_help_msg());
                 return Err(anyhow!("No argument provided for --target".red()));
             }
             target = Some(path.to_owned());
-        } else if command_name == NAME {
+        } else if command_name == Argument::Name.get_name() {
             let _name = arguments.trim();
             if _name.is_empty() {
-                message_printer::print_help_message_for_command(NAME);
+                println!("{}", Argument::Name.get_help_msg());
                 return Err(anyhow!("No argument provided for --name".red()));
             }
             name = Some(_name.to_owned());
-        } else if command_name == HELP {
+        } else if command_name == Argument::Basic.get_name() {
+            let flag = arguments.trim();
+            if !flag.is_empty() {
+                println!("Warning: {}\n", format!("Ignoring argument for --{}",Argument::Basic.get_name()).yellow());
+            }
+            is_basic = true;
+        } else if command_name == Argument::Help.get_name() {
             return Ok(None);
         } else if !command_name.trim().is_empty() {
             return Err(anyhow!(format!("Unknown command: {}", command_name).red()));
         }
     }
 
-    let program_args = CommandLineArgs { dir, target, name };
+    let program_args = CommandLineArgs { dir, target, name, is_basic };
 
     Ok(Some(program_args))
 }
@@ -933,6 +949,7 @@ struct CommandLineArgs {
     pub dir: Option<String>,
     pub target: Option<String>,
     pub name: Option<String>,
+    pub is_basic: bool,
 }
 
 enum SpecialFileType {
