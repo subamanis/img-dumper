@@ -619,6 +619,22 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
             background-color: #71e98d;
         }
 
+        .color-jpg, .color-jpeg {
+            background-color: #ff9ea5;
+        }
+
+        .color-gif {
+            background-color: #afefff;
+        }
+        
+        .color-ico {
+            background-color: #ffef00;
+        }
+        
+        .color-bmp {
+            background-color: #ff5656;
+        }
+
         .image-container span {
             display: block;
             font-size: 0.8em;
