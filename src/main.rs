@@ -16,6 +16,9 @@ pub const VERSION_ID : &str = "v1.0.0";
 fn main() -> anyhow::Result<()> {
     let instant = Instant::now();
 
+    println!("1exists: {:?}\n",PathBuf::from("C:/xampp/htdocs/mega-commons-angular-js/bower_components/components-font-awesome/fonts/fontawesome-webfont.eot?v4.7.0").exists());
+    println!("2exists: {:?}\n",PathBuf::from("C:/xampp/htdocs/mega-commons-angular-js/bower_components/components-font-awesome/fonts/fontawesome-webfont.eot").exists());
+
     // Only on windows, it is required to enable a virtual terminal environment, so that the colors will display correctly
     #[cfg(target_os = "windows")]
     control::set_virtual_terminal(true).unwrap();
@@ -501,7 +504,6 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
             width: -moz-fit-content;
             background-color: rgba(0,0,0,0.8); 
             border-radius: 16px; 
-            // display: none;
         }
 
         #copy-notification span:first-child {
@@ -730,7 +732,10 @@ fn parse_css_file(file_spec: &ParsableFileSpec, reader: BufReader<File>) -> anyh
             if let Some(index_end) = &line[relative_path_start..].find("')") {
                 let relative_path_end = relative_path_start + index_end;
                 let absolute_path = join_paths(&file_spec.selected_abs_dir.as_ref().unwrap(), &line[relative_path_start..relative_path_end], "/");
+                println!("absolute_path: {}", absolute_path);
+                println!("is file: {}", PathBuf::from(&absolute_path).exists());
                 line.replace_range(relative_path_start..relative_path_end, &absolute_path);
+                // println!("final line: {}\n", line);
                 start_index = relative_path_end + 2;
             } else {
                 break;
@@ -1031,8 +1036,11 @@ impl <'a> AppConfig<'a> {
         let output_file_path = convert_to_absolute(&join_paths(&output_file_path.to_string_lossy(), &output_file_name, "/"));
 
         let font_awesome_file_spec = ParsableFileSpec::new("font-awesome", "font-awesome", "css",
-            root_dir.clone() + "/mega-commons-angular-js/bower_components/components-font-awesome/css",
-            Some("/bower_components/components-font-awesome/css"), 38000, parse_css_file);
+            root_dir.clone() + "/project1/here",
+            Some("/here"), 38000, parse_css_file);
+        // let font_awesome_file_spec = ParsableFileSpec::new("font-awesome", "font-awesome", "css",
+        //     root_dir.clone() + "/mega-commons-angular-js/bower_components/components-font-awesome/css",
+        //     Some("/bower_components/components-font-awesome/css"), 38000, parse_css_file);
         let sp_icons_file_spec = ParsableFileSpec::new("sp-icons", "style", "css", 
             root_dir.clone() + "/mega-commons-angular-js/assets/fonts/sp-icons",
             None, 15000, parse_css_file);
