@@ -122,9 +122,9 @@ fn traverse_root_dir_and_make_project_map(app_config: &AppConfig) -> HashMap<Str
             images = vec![];
         }
 
-        let extension = entry_path.extension().unwrap_or_default().to_str().unwrap_or_default();
+        let extension = entry_path.extension().unwrap_or_default().to_str().unwrap_or_default().to_lowercase();
 
-        if app_config.relevant_extensions.contains(&extension) {
+        if app_config.relevant_extensions.contains(&extension.as_str()) {
             let name = entry_path.file_stem().unwrap_or_default().to_str().unwrap_or_default();
             let img = Img {
                 name: name.to_owned(),
