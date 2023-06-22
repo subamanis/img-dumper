@@ -1,14 +1,14 @@
 # img-dumper
 
-This a CLI tool that searches for image files (svg, png, etc.) inside a root directory, and generates an interactive .html file that displays the icons,
+This a CLI tool that searches for <b>image files</b> (svg, png, etc.) inside a root directory, and <b>generates an interactive .html file</b> that displays the icons,
 their paths and groups them by project name. The generated file is interactible, searchable and contains extension filters.
 
-Running the program with no arguments, tries to find the default installation path for xampp/htdocs. 
+Running the program with no arguments, tries to find the default installation path for <b>xampp/htdocs</b>. 
 
 Every top level folder inside the root directory, is considered a `project`.
 
 ## How To Run
-The only thing you need is the binary. You can either:
+The only thing you need is the <b>binary</b>. You can either:
 1) For Windows only, grab the prebuilt binary from the "executable" folder.
 2) ```cargo install --git https://github.com/subamanis/img-dumper```
 3) Build yourself by cloning or downloading the repo (```cargo build --release```),
