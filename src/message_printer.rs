@@ -27,7 +27,9 @@ const NAME_HELP  :  &str =
 
 
 pub fn print_whole_help_message() {
-    let mut msg = String::new();
+    let mut msg = 
+    "Running the program without arguments will try to find the common default installation paths for xampp/htdocs
+and consider this path as root.\n\n".to_owned();
 
     msg += DIR_HELP;
     msg += TARGET_HELP;

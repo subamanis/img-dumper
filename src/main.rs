@@ -1038,7 +1038,7 @@ impl AppConfig {
             font_awesome_css_default_file_dir: font_awesome_default_css_dir.to_owned(),
             font_awesome_css_default_absolute_file_path: font_awesome_default_css_dir + "/font-awesome.css",
             selected_font_awesome_css_absolute_file_path: String::new(),
-            relevant_extensions: vec!["svg", "png"],
+            relevant_extensions: vec!["svg", "png", "jpg", "jpeg", "gif", "bmp", "ico"],
             irrelevant_dir_names: vec![
                     "bower_components",
                     "node_modules",
