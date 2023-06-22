@@ -1,6 +1,7 @@
 mod message_printer;
 
-use std::{fs::{File}, io::{Write, BufReader, BufRead}, collections::HashMap, process::Command, path::{PathBuf, Path}, env, time::Instant};
+use std::{fs::File, io::{Write, BufReader, BufRead}, collections::HashMap, process::Command, path::{PathBuf, Path}, env, time::Instant};
+use std::fmt::Debug;
 
 use anyhow::{Context, anyhow};
 use colored::*;
@@ -45,12 +46,12 @@ fn main() -> anyhow::Result<()> {
     let mut sorted_project_names: Vec<String> = projects_map.keys().into_iter().map(|k| k.clone()).collect();
     sorted_project_names.sort();
 
-    let (sp_icons_class_names, sp_icons_css_string) = {
+    let (mut sp_icons_class_names, sp_icons_css_string) = {
         if app_config.command_line_args.is_basic {
             (Vec::new(), String::new())
         } else {
             print!("Parsing sp-icons... ");
-            match parse_special_file(SpecialFileType::SpIconsCss, &projects_map, &mut app_config)? {
+            match parse_special_file(&mut app_config.sp_icons_file_spec, &projects_map)? {
                 Some((sp_icons_class_names, sp_icons_css_string)) => {
                     println!("{}", "OK".green());
                     (sp_icons_class_names, sp_icons_css_string)
@@ -62,12 +63,13 @@ fn main() -> anyhow::Result<()> {
             }       
         }
     };
-    let (font_awesome_class_names, font_awesome_css_string) = {
+    sp_icons_class_names.sort();
+    let (mut font_awesome_class_names, font_awesome_css_string) = {
         if app_config.command_line_args.is_basic {
             (Vec::new(), String::new())
         } else {
             print!("Parsing font-awesome... ");
-            match parse_special_file(SpecialFileType::FontAwesomeCss, &projects_map, &mut app_config)? {
+            match parse_special_file(&mut app_config.font_awesome_file_spec, &projects_map)? {
                 Some((font_awesome_class_names, font_awesome_css_string)) => {
                     println!("{}", "OK".green());
                     (font_awesome_class_names, font_awesome_css_string)
@@ -79,9 +81,10 @@ fn main() -> anyhow::Result<()> {
             }
         }
     };
+    font_awesome_class_names.sort();
 
     let html = generate_html_page_as_string(&projects_map, &sorted_project_names, &sp_icons_class_names, &sp_icons_css_string,
-        &font_awesome_class_names, &font_awesome_css_string, &app_config);
+        &font_awesome_class_names, &font_awesome_css_string, &app_config)?;
     write_to_file(html, &app_config)?;
     println!("\nGenerated html file: {}", app_config.output_file_path);
 
@@ -313,7 +316,7 @@ fn generate_html_page_as_string(
         sp_icons_css_string: &String,
         font_awesome_class_names: &Vec<String>,
         font_awesome_css_string: &String,
-        app_config: &AppConfig) -> String {
+        app_config: &AppConfig) -> anyhow::Result<String> {
     let mut html = String::from("<html lang='en'> <head> <title>Spectre icons</title> </head> <body>");
     
     html += 
@@ -345,14 +348,18 @@ fn generate_html_page_as_string(
     </div>";
 
     if !sp_icons_class_names.is_empty() {
-        let sp_icons_html_string = generate_html_string_from_classes("sp-icons", &app_config.selected_sp_icons_css_absolute_file_path,
-         "sp-icons", "sp-icons-", "svg", &sp_icons_class_names);
+        if app_config.sp_icons_file_spec.selected_abs_dir.is_none() {
+            return Err(anyhow!("sp-icons file path should be set but it isn't (this is a bug)".red()));
+        }
+        let sp_icons_html_string = generate_html_string_from_classes(&app_config.sp_icons_file_spec, "sp-icons", "sp-icons-", "svg", &sp_icons_class_names);
         html += &sp_icons_html_string;
     }
 
     if !font_awesome_class_names.is_empty() {
-        let font_awesome_html_string = generate_html_string_from_classes("font-awesome", &app_config.selected_font_awesome_css_absolute_file_path,
-         "fa", "fa-", "svg", &font_awesome_class_names);
+        if app_config.font_awesome_file_spec.selected_abs_dir.is_none() {
+            return Err(anyhow!("font-awesome file path should be set but it isn't (this is a bug)".red()));
+        }
+        let font_awesome_html_string = generate_html_string_from_classes(&app_config.font_awesome_file_spec, "fa", "fa-", "svg", &font_awesome_class_names);
         html += &font_awesome_html_string;
     }
 
@@ -388,7 +395,7 @@ fn generate_html_page_as_string(
     html += &get_javascript_string(app_config);
     html += "</html>";
 
-    html
+    Ok(html)
 }
 
 fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String) -> String {
@@ -620,7 +627,7 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
     css
 }
 
-fn generate_html_string_from_classes(section_title: &str, file_path: &str, extra_class: &str, class_prefix: &str, extension: &str, classes: &Vec<String>) -> String {
+fn generate_html_string_from_classes(file_spec: &ParsableFileSpec, extra_class: &str, class_prefix: &str, extension: &str, classes: &Vec<String>) -> String {
     let mut html = String::with_capacity(1000);
     html += &format!("<div class='project-area'>
                         <div class='flex-center'>
@@ -630,7 +637,7 @@ fn generate_html_string_from_classes(section_title: &str, file_path: &str, extra
                                 <h1 class='title margin-right-05'>{}</h1>
                             </div>
                             <span>({}) ---- class names are normally prefixed with `{}`</span>
-                        </div>", section_title, file_path, class_prefix);
+                        </div>", file_spec.title, file_spec.selected_abs_dir.as_ref().unwrap(), class_prefix);
 
     html += "<ul class='images-area'>\n";
     for class in classes {
@@ -647,100 +654,68 @@ fn generate_html_string_from_classes(section_title: &str, file_path: &str, extra
     html
 }
 
-fn parse_special_file(
-    special_file_type: SpecialFileType,
-    projects_map: &HashMap<String, ProjectDir>,
-    app_config: &mut AppConfig)
+fn parse_special_file( file_spec: &mut ParsableFileSpec, projects_map: &HashMap<String, ProjectDir>)
 -> anyhow::Result<Option<(Vec<String>, String)>> {
-    let mut file_path = PathBuf::from(special_file_type.get_default_file_path(app_config));
-    let mut found_valid_path = true;
-    if !file_path.exists() {
-        found_valid_path = false;
-        if let Some(relative_path) = special_file_type.get_relative_file_path(app_config) {
+    let mut found_file_path = file_spec.known_abs_path.to_owned();
+    let mut found_file_dir = file_spec.known_abs_dir.to_owned();
+    let mut has_found_valid_path = true;
+    if !PathBuf::from(&file_spec.known_abs_path).exists() {
+        has_found_valid_path = false;
+        if let Some(relative_dir) = &file_spec.relative_dir {
             for project in projects_map.values() {
-                let file_path_str = join_paths(&project.path, relative_path, "");
-                file_path = PathBuf::from(file_path_str);
-                if file_path.exists() {
-                    found_valid_path = true;
+                let file_dir_str = format!("{}{}", project.path, relative_dir);
+                let file_path_str = format!("{}/{}.{}", file_dir_str, file_spec.name, file_spec.extension);
+                if PathBuf::from(&file_path_str).exists() {
+                    found_file_dir = file_dir_str;
+                    found_file_path = file_path_str;
+                    has_found_valid_path = true;
                     break;
                 }
             }
         }
-   }
+    }
 
-   if !found_valid_path {
-       return Ok(None);
-   }
+    if !has_found_valid_path {
+        return Ok(None);
+    } else {
+        file_spec.selected_abs_dir = Some(found_file_dir.clone());
+    }
 
-   let file_path_str = match file_path.to_str() {
-       Some(file_path_str) => file_path_str,
-       None => return Err(anyhow!("Failed to convert file path to string".red())),
-   };
-   special_file_type.set_selected_file_path(file_path_str, app_config);
+    let reader = BufReader::new(File::open(&found_file_path).context(
+        format!("specified file path `{}` for {} is not valid", found_file_path, &file_spec.title).red())?);
 
-   let reader = BufReader::new(File::open(&file_path).context(
-       format!("specified file path `{}` for {} is not valid", file_path.to_string_lossy(), special_file_type.get_file_title()).red())?);
+    let a = (file_spec.parser_fn)(file_spec, reader)?;
 
-   let mut content = String::with_capacity(special_file_type.get_approximate_file_size_bytes());
-   let mut class_names = Vec::with_capacity(150);
-   for line in reader.lines() {
-       let mut line = line.context(format!("Failed to read a line, while parsing {}", special_file_type.get_file_title()).red())?;
-       match special_file_type {
-           SpecialFileType::SpIconsCss => parse_sp_icons_css(&mut line, &mut class_names, &mut content, app_config),
-           SpecialFileType::FontAwesomeCss => parse_font_awesome_css(&mut line, &mut class_names, &mut content, app_config),
-       }
-   }
-
-   class_names.sort();
-
-   Ok(Some((class_names, content)))
+    Ok(Some(a))
 }
 
-fn parse_sp_icons_css(line: &mut String, class_names: &mut Vec<String>, content: &mut String, app_config: &AppConfig) {
-    let mut start_index = 0;
-    
-    while let Some(index) = line[start_index..].find("url('") {
-        let relative_path_start = start_index + index + 5;
-        if let Some(index_end) = &line[relative_path_start..].find("')") {
-            let relative_path_end = relative_path_start + index_end + 2;
-            let absolute_path = join_paths(&app_config.sp_icons_css_default_file_dir, &line[relative_path_start..relative_path_end], "/");
-            line.replace_range(relative_path_start..relative_path_end, &absolute_path);
-            start_index = relative_path_end;
-        } else {
-            break;
+fn parse_css_file(file_spec: &ParsableFileSpec, reader: BufReader<File>) -> anyhow::Result<(Vec<String>, String)> {
+    let mut content = String::with_capacity(file_spec.approximate_size_bytes);
+    let mut class_names = Vec::with_capacity(150);
+    for line in reader.lines() {
+        let mut start_index = 0;
+        let mut line = line.context(format!("Failed to read a line, while parsing {}", file_spec.title).red())?;
+        while let Some(index) = line[start_index..].find("url('") {
+            let relative_path_start = start_index + index + 5;
+            if let Some(index_end) = &line[relative_path_start..].find("')") {
+                let relative_path_end = relative_path_start + index_end;
+                let absolute_path = join_paths(&file_spec.selected_abs_dir.as_ref().unwrap(), &line[relative_path_start..relative_path_end], "/");
+                line.replace_range(relative_path_start..relative_path_end, &absolute_path);
+                start_index = relative_path_end + 2;
+            } else {
+                break;
+            }
         }
-    }
-    
-    if let Some(class_name) = line.strip_suffix(":before {") {
-        class_names.push(class_name[1..].to_owned());
-    }
-    
-    content.push_str(&line);
-    content.push('\n');
-}
-
-
-fn parse_font_awesome_css(line: &mut String, class_names: &mut Vec<String>, content: &mut String, app_config: &AppConfig) {
-    let mut start_index = 0;
-    
-    while let Some(index) = line[start_index..].find("url('") {
-        let relative_path_start = start_index + index + 5;
-        if let Some(index_end) = &line[relative_path_start..].find("')") {
-            let relative_path_end = relative_path_start + index_end + 2;
-            let absolute_path = join_paths(&app_config.font_awesome_css_default_file_dir, &line[relative_path_start..relative_path_end], "/");
-            line.replace_range(relative_path_start..relative_path_end, &absolute_path);
-            start_index = relative_path_end;
-        } else {
-            break;
+        
+        if let Some(class_name) = line.strip_suffix(":before {") {
+            class_names.push(class_name[1..].to_owned());
         }
+
+        content.push_str(&line);
+        content.push('\n');
     }
-    
-    if let Some(class_name) = line.strip_suffix(":before {") {
-        class_names.push(class_name[1..].to_owned());
-    }
-    
-    content.push_str(&line);
-    content.push('\n');
+
+    Ok((class_names, content))
 }
 
 fn get_htdocs_path() -> Option<String> {
@@ -886,8 +861,9 @@ fn write_to_file(contents: String, app_config: &AppConfig) -> anyhow::Result<()>
     Ok(())
 }
 
+//TODO: make make struct with paths for special files
 #[derive(Debug)]
-struct AppConfig {
+struct AppConfig <'a> {
     pub command_line_args: CommandLineArgs,
 
     // the date and time when the program was executed and the html file was generated
@@ -896,38 +872,68 @@ struct AppConfig {
     // folder that contains the projects in which we want to search for Icons. By default it is the path to htdocs
     pub root_dir : String, 
 
-    // name of the file that will be generated
-    pub output_file_name : String,
-
     // full path of generated file
     pub output_file_path : String,
 
-    // path to the directory that contains the sp-icons css file
-    pub sp_icons_css_default_file_dir : String,
-
-    // default path of the sp-icons css file
-    pub sp_icons_css_default_absolute_file_path : String,
-
-    // the file path that was used for parsing the sp icons css file
-    pub selected_sp_icons_css_absolute_file_path : String,
-
-    // relative path to sp icons css file, from inside the project folder
-    pub font_awesome_css_relative_file_path : String,
-
-    // path to the directory that contains the font-awesome css file
-    pub font_awesome_css_default_file_dir : String,
-
-    // default path of the font-awesome css file
-    pub font_awesome_css_default_absolute_file_path : String,
-
-    // the absolute file path that was used for parsing the font-awesome css file
-    pub selected_font_awesome_css_absolute_file_path : String,
+    // info about the font-awesome css file
+    pub font_awesome_file_spec: ParsableFileSpec<'a>,
+    
+    // info about the sp-icons css file
+    pub sp_icons_file_spec: ParsableFileSpec<'a>,
 
     // names of folders that should be ignored in each project, like node_modules, bower_components, ...
     pub irrelevant_dir_names: Vec<&'static str>,
 
     // extensions that we want to search for, like svg, png, ...
     pub relevant_extensions: Vec<&'static str>,
+}
+
+// #[derive(Debug)]
+struct ParsableFileSpec <'a> {
+    // a descriptive title for the file
+    pub title: &'a str,
+    // the file name without extension
+    pub name: &'a str,
+    pub extension: &'a str,
+    pub known_abs_dir: String,
+    pub known_abs_path: String,
+    // relative paths are relative to a *project* (top level folder inside root dir)
+    // if they are None, it means that the file can only be present in one place (known_abs_path)
+    pub relative_dir: Option<&'a str>,
+    pub relative_path: Option<String>,
+    // this optional get populated with the value only when the directory is validated that it exists
+    pub selected_abs_dir: Option<String>,
+    pub approximate_size_bytes: usize,
+    pub parser_fn: fn(&Self, BufReader<File>) -> anyhow::Result<(Vec<String>, String)>,
+}
+
+impl <'a>Debug for ParsableFileSpec<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ParsableFileSpec").field("title", &self.title).field("name", &self.name).field("extension", &self.extension).field("known_abs_dir", &self.known_abs_dir).field("known_abs_path", &self.known_abs_path).field("relative_dir", &self.relative_dir).field("relative_path", &self.relative_path).field("selected_abs_dir", &self.selected_abs_dir).field("approximate_size_bytes", &self.approximate_size_bytes).finish()
+    }
+}
+
+impl <'a> ParsableFileSpec <'a>  {
+    fn new(title: &'a str, name: &'a str, extension: &'a str, known_abs_dir: String, relative_dir: Option<&'a str>, approximate_size_bytes: usize, 
+            parser_fn: fn(&Self, BufReader<File>) -> anyhow::Result<(Vec<String>, String)>) -> Self {
+        let known_abs_path = format!("{}/{}.{}", known_abs_dir, name, extension);
+        let relative_path = match &relative_dir {
+            Some(dir) => Some(format!("{}/{}.{}", dir, name, extension)),
+            None => None,
+        };
+        Self {
+            title,
+            name,
+            extension,
+            relative_dir,
+            relative_path,
+            known_abs_dir,
+            selected_abs_dir: None,
+            known_abs_path,
+            approximate_size_bytes,
+            parser_fn
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -952,49 +958,7 @@ struct CommandLineArgs {
     pub is_basic: bool,
 }
 
-enum SpecialFileType {
-    SpIconsCss,
-    FontAwesomeCss,
-}
-
-impl SpecialFileType {
-    pub fn get_file_title(&self) -> &str {
-        match self {
-            SpecialFileType::SpIconsCss => "sp-icons",
-            SpecialFileType::FontAwesomeCss => "font-awesome",
-        }
-    }
-
-    pub fn get_default_file_path<'a>(&self, app_config: &'a AppConfig) -> &'a String {
-        match self {
-            SpecialFileType::SpIconsCss => &app_config.sp_icons_css_default_absolute_file_path,
-            SpecialFileType::FontAwesomeCss => &app_config.font_awesome_css_default_absolute_file_path,
-        }
-    }
-
-    pub fn get_relative_file_path<'a>(&self, app_config: &'a AppConfig) -> Option<&'a String> {
-        match self {
-            SpecialFileType::SpIconsCss => None,
-            SpecialFileType::FontAwesomeCss => Some(&app_config.font_awesome_css_relative_file_path),
-        }
-    }
-
-    pub fn get_approximate_file_size_bytes(&self) -> usize {
-        match self {
-            SpecialFileType::SpIconsCss => 1100,
-            SpecialFileType::FontAwesomeCss => 38000,
-        }
-    }
-
-    pub fn set_selected_file_path(&self, file_path: &str, app_config: &mut AppConfig) {
-        match self {
-            SpecialFileType::SpIconsCss => app_config.selected_sp_icons_css_absolute_file_path = file_path.to_owned(),
-            SpecialFileType::FontAwesomeCss => app_config.selected_font_awesome_css_absolute_file_path = file_path.to_owned(),
-        }
-    }
-}
-
-impl AppConfig {
+impl <'a> AppConfig<'a> {
     pub fn init(args: CommandLineArgs) -> anyhow::Result<Self> {
         let root_dir = {
             if let Some(dir) = &args.dir {
@@ -1012,7 +976,6 @@ impl AppConfig {
         if !Path::new(&root_dir).exists() {
             return Err(anyhow!(format!("The (root) directory '{}' does not exist", root_dir).red()));
         }
-
         let mut output_file_name = 
             if let Some(name) = &args.name {
                 name.to_owned()
@@ -1038,23 +1001,20 @@ impl AppConfig {
             };
         let output_file_path = convert_to_absolute(&join_paths(&output_file_path.to_string_lossy(), &output_file_name, "/"));
 
-        let sp_icons_default_css_file_dir = root_dir.clone() + "/mega-commons-angular-js/assets/fonts/sp-icons";
-        let font_awesome_relative_file_dir = "/bower_components/components-font-awesome/css";
-        let font_awesome_default_css_dir = root_dir.clone() + "/mega-commons-angular-js" + font_awesome_relative_file_dir.clone();
+        let font_awesome_file_spec = ParsableFileSpec::new("font-awesome", "font-awesome", "css",
+            root_dir.clone() + "/mega-commons-angular-js/bower_components/components-font-awesome/css",
+            Some("/bower_components/components-font-awesome/css"), 38000, parse_css_file);
+        let sp_icons_file_spec = ParsableFileSpec::new("sp-icons", "style", "css", 
+            root_dir.clone() + "/mega-commons-angular-js/assets/fonts/sp-icons",
+            None, 15000, parse_css_file);
 
         Ok (Self { 
             command_line_args: args,
             exec_date_time: Utc::now().with_timezone(&FixedOffset::east_opt(3 * 3600).unwrap()),
             root_dir,
-            output_file_name,
             output_file_path,
-            sp_icons_css_default_file_dir: sp_icons_default_css_file_dir.clone(),
-            sp_icons_css_default_absolute_file_path: sp_icons_default_css_file_dir + "/style.css",
-            selected_sp_icons_css_absolute_file_path: String::new(),
-            font_awesome_css_relative_file_path: font_awesome_relative_file_dir.to_owned() + "/font-awesome.css",
-            font_awesome_css_default_file_dir: font_awesome_default_css_dir.to_owned(),
-            font_awesome_css_default_absolute_file_path: font_awesome_default_css_dir + "/font-awesome.css",
-            selected_font_awesome_css_absolute_file_path: String::new(),
+            font_awesome_file_spec,
+            sp_icons_file_spec,
             relevant_extensions: vec!["svg", "png", "jpg", "jpeg", "gif", "bmp", "ico"],
             irrelevant_dir_names: vec![
                     "bower_components",
