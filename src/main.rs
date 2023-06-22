@@ -115,7 +115,7 @@ fn traverse_root_dir_and_make_project_map(app_config: &AppConfig) -> HashMap<Str
                 .entry(entry_name.to_owned())
                 .or_insert_with(|| ProjectDir {
                     name: entry_name.to_string(),
-                    path: entry_path.to_string_lossy().into_owned(),
+                    path: entry_path.to_string_lossy().replace("\\","/"),
                     images: Vec::new(),
                 });
 
@@ -128,7 +128,7 @@ fn traverse_root_dir_and_make_project_map(app_config: &AppConfig) -> HashMap<Str
             let name = entry_path.file_stem().unwrap_or_default().to_str().unwrap_or_default();
             let img = Img {
                 name: name.to_owned(),
-                path: entry_path.to_str().unwrap_or_default().to_owned(),
+                path: entry_path.to_string_lossy().replace("\\","/"),
                 extension: extension.to_owned(),
             };
             images.push(img);
@@ -170,6 +170,36 @@ fn get_javascript_string() -> String {
                 parent_project_area_div.style.display = 'block';
             }
             relevant_lis_count = 0;
+        }
+    }
+
+    // handler to copy paths from titles of <li> elements
+    document.addEventListener('click', handleLiClick);
+    function handleLiClick($event) {
+        let target = $event.target;
+        if (target.parentElement.tagName.toLowerCase() === 'li') {
+            target = target.parentElement;
+        }
+        if (target.tagName.toLowerCase() === 'li') {
+            let titleValue = target.getAttribute('title');
+            if (!titleValue) {
+                return;
+            }
+            titleValue = titleValue.substring(0, titleValue.lastIndexOf('/'));
+            navigator.clipboard.writeText(titleValue)
+                .then(() => {
+                    console.log('Text copied to clipboard: ' + titleValue);
+                    const copyNotification = document.getElementById('copy-notification');
+                    // document.getElementById('copy-notification').style.display = 'flex';
+                    copyNotification.classList.add('show');
+                    setTimeout(() => {
+                        copyNotification.classList.remove('show');
+                        // document.getElementById('copy-notification').style.display = 'none';
+                    }, 1000);
+                })
+                .catch((error) => {
+                    console.error('Error copying text to clipboard:', error);
+                });
         }
     }
 
@@ -234,6 +264,11 @@ fn generate_html_page_as_string(
                 <span>{}</span>
             </div>
     </div>", app_config.exec_date_time.format("%d/%m/%Y - %H:%M:%S").to_string());
+
+    html +=
+    "<div id='copy-notification' class='fade'>
+        <span> Copied path to clipboard!</span>
+    </div>";
 
     if !sp_icons_class_names.is_empty() {
         let sp_icons_html_string = generate_html_string_from_classes("sp-icons", &app_config.selected_sp_icons_css_absolute_file_path,
@@ -318,6 +353,7 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
         .checkbox-item {
             display: flex;
             width: fit-content; 
+            width: -moz-fit-content;
             align-items: center; 
             column-gap: 0.2em;
             cursor: pointer;
@@ -347,6 +383,35 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
             border-style: inset; 
             padding: 0.1em; 
             border-radius-top: 5px; 
+        }
+
+        #copy-notification {
+            position: fixed; 
+            z-index: 1; 
+            right: 10; 
+            bottom: 15;
+            display: flex; 
+            align-items: center;
+            width: fit-content; 
+            width: -moz-fit-content;
+            background-color: rgba(0,0,0,0.8); 
+            border-radius: 16px; 
+            // display: none;
+        }
+
+        #copy-notification span:first-child {
+            color: white; 
+            padding: 0.5em 1em; 
+            font-style: italic;
+        }
+
+        .fade {
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        
+        .fade.show {
+            opacity: 1;
         }
 
         .name-arrow-container {
@@ -423,6 +488,10 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
             flex-direction: column;
             word-wrap: break-word;
             width: 4.5em;
+        }
+
+        .image-container[title] {
+            cursor: copy; 
         }
 
         .extension-stamp {
