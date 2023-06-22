@@ -206,11 +206,9 @@ fn get_javascript_string(app_config: &AppConfig) -> String {
                 .then(() => {
                     console.log('Text copied to clipboard: ' + titleValue);
                     const copyNotification = document.getElementById('copy-notification');
-                    // document.getElementById('copy-notification').style.display = 'flex';
                     copyNotification.classList.add('show');
                     setTimeout(() => {
                         copyNotification.classList.remove('show');
-                        // document.getElementById('copy-notification').style.display = 'none';
                     }, 1000);
                 })
                 .catch((error) => {
@@ -377,25 +375,46 @@ fn generate_html_page_as_string(
                             <ul class='images-area'>", project_name, curr_project_dir.path);
 
         for (i, image) in curr_project_dir.images.iter().enumerate() {
-        html += &format!("<li class='image-container' title='{}'>
-                            <div class='extension-stamp color-{}'>
-                                <span>{}</span>
-                            </div>
-                            <img src=\"{}\" alt=\"{}\" />
-                            <span>{}</span>
-                        </li>
+        html += &format!("<li class='image-container' title='{}'> <div class='extension-stamp color-{}'> <span>{}</span> </div> <img src=\"{}\" alt=\"{}\" /> <span>{}</span> </li>
                     ", image.path, image.extension, image.extension, image.path, i, image.name);
         }
 
         html += "</ul></div>";
     }
 
+    html += "
+    <div class='author-area'>
+        <span>Petros Papatheodorou 2023</span>
+    </div>";
+    
     html += "</body>";
     html += &get_css_string(&sp_icons_css_string, &font_awesome_css_string);
     html += &get_javascript_string(app_config);
     html += "</html>";
 
     Ok(html)
+}
+
+fn generate_html_string_from_classes(file_spec: &ParsableFileSpec, extra_class: &str, class_prefix: &str, extension: &str, classes: &Vec<String>) -> String {
+    let mut html = String::with_capacity(1000);
+    html += &format!("<div class='project-area'>
+                        <div class='flex-center'>
+                            <div class='name-arrow-container' onclick='toggleProjectArea(event)'>
+                                <span class='down arrow-utf-8'>&#9660</span>
+                                <span class='up arrow-utf-8' style='display: none'>&#9650</span>
+                                <h1 class='title margin-right-05'>{}</h1>
+                            </div>
+                            <span>({}) ---- class names are normally prefixed with `{}`</span>
+                        </div>", file_spec.title, file_spec.selected_abs_dir.as_ref().unwrap(), class_prefix);
+
+    html += "<ul class='images-area'>\n";
+    for class in classes {
+        html += &format!("<li class='image-container'> <div class='extension-stamp color-{}'> <span>{}</span> </div> <i class='{} {}'></i> <span>{}</span> </li>
+            ", extension, extension, extra_class, class, class.strip_prefix(class_prefix).unwrap_or(class));
+    }
+    html.push_str("</ul></div>\n");
+
+    html
 }
 
 fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String) -> String {
@@ -613,7 +632,21 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
             max-height: 3.5em;
             margin-left: auto;
             margin-right: auto;
-        }\n\n");
+        }
+        
+        .author-area {
+            display: flex;
+            justify-content: right;
+        }
+
+        .author-area span {
+            color: #818181;
+            font-size: 0.9em;
+            font-style: italic;
+            margin-right: 0.5em;
+        }
+
+        \n\n");
     if !sp_icons_css_string.is_empty() {
         css += "/*===================>  SP ICONS AREA <===================*/\n\n";
         css += &sp_icons_css_string;
@@ -625,33 +658,6 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
     css += "</style>";
 
     css
-}
-
-fn generate_html_string_from_classes(file_spec: &ParsableFileSpec, extra_class: &str, class_prefix: &str, extension: &str, classes: &Vec<String>) -> String {
-    let mut html = String::with_capacity(1000);
-    html += &format!("<div class='project-area'>
-                        <div class='flex-center'>
-                            <div class='name-arrow-container' onclick='toggleProjectArea(event)'>
-                                <span class='down arrow-utf-8'>&#9660</span>
-                                <span class='up arrow-utf-8' style='display: none'>&#9650</span>
-                                <h1 class='title margin-right-05'>{}</h1>
-                            </div>
-                            <span>({}) ---- class names are normally prefixed with `{}`</span>
-                        </div>", file_spec.title, file_spec.selected_abs_dir.as_ref().unwrap(), class_prefix);
-
-    html += "<ul class='images-area'>\n";
-    for class in classes {
-        html += &format!("<li class='image-container'>
-                            <div class='extension-stamp color-{}'>
-                                <span>{}</span>
-                            </div>
-                            <i class='{} {}'></i>
-                            <span>{}</span>
-                        </li>", extension, extension, extra_class, class, class.strip_prefix(class_prefix).unwrap_or(class));
-    }
-    html.push_str("</ul></div>\n");
-
-    html
 }
 
 fn parse_special_file( file_spec: &mut ParsableFileSpec, projects_map: &HashMap<String, ProjectDir>)
