@@ -883,7 +883,6 @@ fn write_to_file(contents: String, app_config: &AppConfig) -> anyhow::Result<()>
     Ok(())
 }
 
-//TODO: make make struct with paths for special files
 #[derive(Debug)]
 struct AppConfig <'a> {
     pub command_line_args: CommandLineArgs,
@@ -1045,6 +1044,9 @@ impl <'a> AppConfig<'a> {
                     "dist",
                     "api",
                     "app",
+                    "build_release",
+                    "backup",
+                    "temp"
                 ],
         })
     }
