@@ -1035,11 +1035,8 @@ impl <'a> AppConfig<'a> {
         let output_file_path = convert_to_absolute(&join_paths(&output_file_path.to_string_lossy(), &output_file_name, "/"));
 
         let font_awesome_file_spec = ParsableFileSpec::new("font-awesome", "font-awesome", "css",
-            root_dir.clone() + "/project1/here",
-            Some("/here"), 38000, parse_css_file);
-        // let font_awesome_file_spec = ParsableFileSpec::new("font-awesome", "font-awesome", "css",
-        //     root_dir.clone() + "/mega-commons-angular-js/bower_components/components-font-awesome/css",
-        //     Some("/bower_components/components-font-awesome/css"), 38000, parse_css_file);
+            root_dir.clone() + "/mega-commons-angular-js/bower_components/components-font-awesome/css",
+            Some("/bower_components/components-font-awesome/css"), 38000, parse_css_file);
         let sp_icons_file_spec = ParsableFileSpec::new("sp-icons", "style", "css", 
             root_dir.clone() + "/mega-commons-angular-js/assets/fonts/sp-icons",
             None, 15000, parse_css_file);
