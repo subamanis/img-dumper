@@ -323,10 +323,11 @@ fn generate_html_page_as_string(
     html += &format!(
     "   </div>
             <div class='date-marker-area'>
+                <span>{}</span>
                 <span>Generated at:</span>
                 <span>{}</span>
             </div>
-    </div>", app_config.exec_date_time.format("%d/%m/%Y - %H:%M:%S").to_string());
+    </div>", VERSION_ID, app_config.exec_date_time.format("%d/%m/%Y - %H:%M:%S").to_string());
 
     html +=
     "<div id='copy-notification' class='fade'>
