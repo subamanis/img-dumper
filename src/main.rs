@@ -994,7 +994,7 @@ impl <'a> AppConfig<'a> {
                 if let Some(x) = get_htdocs_path() {
                     x
                 } else {
-                    return Err(anyhow!("Unable to find htdocs folder and no custom root directory provided".red()));
+                    return Err(anyhow!("Unable to find htdocs folder and no custom root directory provided (--dir <path>)".red()));
                 }
             }
         };
