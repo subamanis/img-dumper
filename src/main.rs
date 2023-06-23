@@ -736,7 +736,7 @@ fn parse_css_file(file_spec: &ParsableFileSpec, reader: BufReader<File>) -> anyh
         }
         
         if let Some(class_name) = line.strip_suffix(":before {") {
-            class_names.push(class_name[1..].to_owned());
+            class_names.push(class_name.trim()[1..].to_owned());
         }
 
         content.push_str(&line);
