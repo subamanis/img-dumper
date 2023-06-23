@@ -3,7 +3,8 @@
 This a CLI tool that searches for <b>image files</b> (svg, png, etc.) inside a root directory, and <b>generates an interactive .html file</b> that displays the icons,
 their paths and groups them by project name. The generated file is interactible, searchable and contains extension filters.
 
-Running the program with no arguments, tries to find the default installation path for <b>xampp/htdocs</b>. 
+Running the program with no arguments, tries to find the default installation path for <b>xampp/htdocs</b>. </br>
+You can provide another path the *--dir* argument (see argument below)
 
 Every top level folder inside the root directory, is considered a `project`.
 
