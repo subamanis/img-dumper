@@ -10,7 +10,7 @@ Every top level folder inside the root directory, is considered a `project`.
 
 ## How To Run
 The only thing you need is the <b>binary</b>. You can either:
-1) For Windows only, grab the prebuilt binary from the "executable" folder.
+1) Grab the prebuilt binary from the "executable" folder (the linux binary was compiled in Ubuntu 22.04)
 2) ```cargo install --git https://github.com/subamanis/img-dumper```
 3) Build yourself by cloning or downloading the repo (```cargo build --release```),
 
