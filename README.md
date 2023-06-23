@@ -42,3 +42,7 @@ Below there is a list with all the arguments-flags that the program accepts.
 --name 
     1 argument, the name of the generated file.
     The name can contain whitespaces.
+
+--basic
+    No arguments.
+    It runs the program without trying to parse special files that may not be on your pc
