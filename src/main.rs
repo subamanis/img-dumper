@@ -5,7 +5,7 @@ use std::fmt::Debug;
 
 use anyhow::{Context, anyhow};
 use colored::*;
-use chrono::{DateTime, offset::{Utc, FixedOffset}};
+use chrono::{DateTime, Local};
 use walkdir::WalkDir;
 
 use message_printer::*;
@@ -894,7 +894,7 @@ struct AppConfig <'a> {
     pub command_line_args: CommandLineArgs,
 
     // the date and time when the program was executed and the html file was generated
-    pub exec_date_time: DateTime<FixedOffset>,
+    pub exec_date_time: DateTime<Local>,
 
     // folder that contains the projects in which we want to search for Icons. By default it is the path to htdocs
     pub root_dir : String, 
@@ -1037,7 +1037,7 @@ impl <'a> AppConfig<'a> {
 
         Ok (Self { 
             command_line_args: args,
-            exec_date_time: Utc::now().with_timezone(&FixedOffset::east_opt(3 * 3600).unwrap()),
+            exec_date_time: Local::now(),
             root_dir,
             output_file_path,
             font_awesome_file_spec,
@@ -1049,7 +1049,6 @@ impl <'a> AppConfig<'a> {
                     "vendor",
                     "dist",
                     "api",
-                    "app",
                     "build_release",
                     "backup",
                     "temp"
