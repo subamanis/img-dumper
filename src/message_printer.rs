@@ -3,17 +3,19 @@ pub enum Argument {
     Target,
     Name,
     Basic,
+    NoBrowser,
     Help,
 }
 
 impl Argument {
     pub fn get_name(&self) -> &str {
         match self {
-            Argument::Dir      => "dir",
-            Argument::Target   => "target",
-            Argument::Name     => "name",
-            Argument::Basic    => "basic",
-            Argument::Help     => "help",
+            Argument::Dir         => "dir",
+            Argument::Target      => "target",
+            Argument::Name        => "name",
+            Argument::Basic       => "basic",
+            Argument::NoBrowser   => "no-browser",
+            Argument::Help        => "help",
         }
     }
 
@@ -37,8 +39,13 @@ Argument::Name => "--name
 
 ",
 Argument::Basic => "--basic 
-    No argument
+    No arguments.
     Skips the parsing of special css files, that may not exist if the project is used for generic use.
+
+",
+Argument::NoBrowser => "--no-browser 
+    No arguments.
+    Doesn't try to open the geneated html in the browser.
 
 ",
 _  => "",
@@ -55,6 +62,7 @@ and consider this path as root.\n\n".to_owned();
     msg += Argument::Target.get_help_msg();
     msg += Argument::Name.get_help_msg();
     msg += Argument::Basic.get_help_msg();
+    msg += Argument::NoBrowser.get_help_msg();
 
     print!("{}",msg);
 }

@@ -11,7 +11,7 @@ use walkdir::WalkDir;
 use message_printer::*;
 
 // Application version, to be displayed at startup and on the webpage
-pub const VERSION_ID : &str = "v1.0.0"; 
+pub const VERSION_ID : &str = "v1.0.1"; 
 
 fn main() -> anyhow::Result<()> {
     let instant = Instant::now();
@@ -88,7 +88,9 @@ fn main() -> anyhow::Result<()> {
     write_to_file(html, &app_config)?;
     println!("\nGenerated html file: {}", app_config.output_file_path);
 
-    open_generated_file_in_the_browser(&app_config);
+    if !app_config.command_line_args.no_browser {
+        open_generated_file_in_the_browser(&app_config);
+    } 
 
     println!("\nExec time: {:.2} secs", instant.elapsed().as_secs_f32());
 
@@ -787,7 +789,7 @@ fn parse_args() -> anyhow::Result<Option<CommandLineArgs>> {
         commands.next();
     }
 
-    let (mut dir, mut target, mut name, mut is_basic) = (None, None, None, false);
+    let (mut dir, mut target, mut name, mut is_basic, mut no_browser) = (None, None, None, false, false);
     for command in commands {
         let (command_name, arguments) = match command.find(" ") {
             Some(index) => command.split_at(index),
@@ -821,6 +823,12 @@ fn parse_args() -> anyhow::Result<Option<CommandLineArgs>> {
                 println!("Warning: {}\n", format!("Ignoring argument for --{}",Argument::Basic.get_name()).yellow());
             }
             is_basic = true;
+        } else if command_name == Argument::NoBrowser.get_name() {
+            let flag = arguments.trim();
+            if !flag.is_empty() {
+                println!("Warning: {}\n", format!("Ignoring argument for --{}",Argument::NoBrowser.get_name()).yellow());
+            }
+            no_browser = true;
         } else if command_name == Argument::Help.get_name() {
             return Ok(None);
         } else if !command_name.trim().is_empty() {
@@ -828,7 +836,7 @@ fn parse_args() -> anyhow::Result<Option<CommandLineArgs>> {
         }
     }
 
-    let program_args = CommandLineArgs { dir, target, name, is_basic };
+    let program_args = CommandLineArgs { dir, target, name, is_basic, no_browser };
 
     Ok(Some(program_args))
 }
@@ -983,6 +991,7 @@ struct CommandLineArgs {
     pub target: Option<String>,
     pub name: Option<String>,
     pub is_basic: bool,
+    pub no_browser: bool,
 }
 
 impl <'a> AppConfig<'a> {

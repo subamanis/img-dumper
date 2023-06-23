@@ -45,4 +45,8 @@ Below there is a list with all the arguments-flags that the program accepts.
 
 --basic
     No arguments.
-    It runs the program without trying to parse special files that may not be on your pc
+    Skips the parsing of special css files, that may not exist if the project is used for generic use.
+
+--no-browser
+    No arguments.
+    Doesn't try to open the geneated html in the browser.
