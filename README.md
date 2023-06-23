@@ -4,7 +4,7 @@ This a CLI tool that searches for <b>image files</b> (svg, png, etc.) inside a r
 their paths and groups them by project name. The generated file is searchable and contains extension filters.
 
 Running the program with no arguments, tries to find the default installation path for <b>xampp/htdocs</b>. </br>
-You can provide another path the *--dir* argument (see argument below)
+You can provide another path with the *--dir* argument (see argument below)
 
 Every top level folder inside the root directory, is considered a `project`.
 
@@ -42,3 +42,7 @@ Below there is a list with all the arguments-flags that the program accepts.
 --name 
     1 argument, the name of the generated file.
     The name can contain whitespaces.
+
+--basic
+    No arguments.
+    It runs the program without trying to parse special files that may not be on your pc
