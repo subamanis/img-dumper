@@ -11,7 +11,7 @@ use walkdir::WalkDir;
 use message_printer::*;
 
 // Application version, to be displayed at startup and on the webpage
-pub const VERSION_ID : &str = "v1.0.1"; 
+pub const VERSION_ID : &str = "v1.1.0"; 
 
 fn main() -> anyhow::Result<()> {
     let instant = Instant::now();
