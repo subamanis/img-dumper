@@ -1,0 +1,11 @@
+v1.1.0 - <ENTER_DATE_HERE>
+    <NUM> Total lines  -  <NUM> Code lines
+
+New funcitonality:
+    -> Every project now has a black or white box next to its name, that is used to change the background color of the area that includes the project icons.
+
+New commands:
+    -> Added the --no-browser argument, that makes the program not try to open the generated html in the browser.
+
+Other:
+    -> Fixed clippy lints
