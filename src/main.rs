@@ -224,7 +224,6 @@ fn get_javascript_string(app_config: &AppConfig) -> String {
         let downChild = element.querySelector('span.down');
         let upChild = element.querySelector('span.up');
         let ul = element.parentElement.parentElement.querySelector('ul.images-area');
-        console.log('ul: ', ul);
 
         // down arrow is showing in the beginning
         if (getComputedStyle(downChild).display !== 'none') {
@@ -241,6 +240,27 @@ fn get_javascript_string(app_config: &AppConfig) -> String {
             upChild.style.display = '';
         }
     } 
+
+    function changeBgForIconArea(event) {
+        const element = event.currentTarget;
+        let ul = element.parentElement.parentElement.getElementsByTagName('ul')[0];
+        if (!ul) {
+            console.error('cannot find ul to change bg');
+            return;
+        }
+
+        if (element.classList.contains('white')) {
+            element.classList.remove('white');
+            element.classList.add('black');
+            ul.classList.remove('black');
+            ul.classList.add('white');
+        } else {
+            element.classList.remove('black');
+            element.classList.add('white');
+            ul.classList.remove('white');
+            ul.classList.add('black');
+        }
+    }
 
     function handleCheckboxChange(event) {
         const checkbox = event.currentTarget;
@@ -372,9 +392,10 @@ fn generate_html_page_as_string(
                                     <span class='up arrow-utf-8' style='display: none'>&#9650</span>
                                     <h1 class='title margin-right-05'>{}</h1>
                                 </div>
+                                <div class='change-bg-area black' onclick='changeBgForIconArea(event)' title='change background color'></div>
                                 <span>({})</span>
                             </div>
-                            <ul class='images-area'>", project_name, curr_project_dir.path);
+                            <ul class='images-area white'>", project_name, curr_project_dir.path);
 
         for (i, image) in curr_project_dir.images.iter().enumerate() {
         html += &format!("<li class='image-container' title='{}'> <div class='extension-stamp color-{}'> <span>{}</span> </div> <img src=\"{}\" alt=\"{}\" /> <span>{}</span> </li>
@@ -406,10 +427,11 @@ fn generate_html_string_from_classes(file_spec: &ParsableFileSpec, extra_class: 
                                 <span class='up arrow-utf-8' style='display: none'>&#9650</span>
                                 <h1 class='title margin-right-05'>{}</h1>
                             </div>
+                            <div class='change-bg-area black' onclick='changeBgForIconArea(event)' title='change background color'></div>
                             <span>({}) ---- class names are normally prefixed with `{}`</span>
                         </div>", file_spec.title, file_spec.selected_abs_dir.as_ref().unwrap(), class_prefix);
 
-    html += "<ul class='images-area'>\n";
+    html += "<ul class='images-area white'>\n";
     for class in classes {
         html += &format!("<li class='image-container'> <div class='extension-stamp color-{}'> <span>{}</span> </div> <i class='{} {}'></i> <span>{}</span> </li>
             ", extension, extension, extra_class, class, class.strip_prefix(class_prefix).unwrap_or(class));
@@ -432,8 +454,16 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
         }
 
         ul {
-            padding: 0;
+            padding: 0.5em 0;
             margin: 0;
+            border-radius: 5px;
+        }
+
+        ul.black {
+            background-color: #1d1d1d;
+        }
+        ul.white {
+            background-color: #f1f1f1;
         }
 
         .search-container {
@@ -566,17 +596,36 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
         }
 
         .project-area {
-            margin-bottom: 20px;
+            margin-bottom: 0.8em;
+        }
+
+        .project-area div:first-child {
+            column-gap: 0.8em;
         }
 
         .title {
-            margin-top: 0.3em;
-            margin-bottom: 0.3em;
+            margin: 0.3em 0;
         }
 
         .title+span {
             font-size: 0.9em;
             color: #333333;
+        }
+
+        .change-bg-area {
+            width: 1em;
+            height: 1em;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 2px solid black;
+        }
+
+        .change-bg-area.white {
+            background-color: white;
+        }
+
+        .change-bg-area.black {
+            background-color: black;
         }
 
         .images-area {
