@@ -43,7 +43,7 @@ fn main() -> anyhow::Result<()> {
         println!("{} ({} found)", "OK".green(), projects_map.len());
     }
     projects_map.values_mut().for_each(|f| f.images.sort_by(|a, b| a.name.cmp(&b.name)));
-    let mut sorted_project_names: Vec<String> = projects_map.keys().into_iter().map(|k| k.clone()).collect();
+    let mut sorted_project_names: Vec<String> = projects_map.keys().cloned().collect();
     sorted_project_names.sort();
 
     let (mut sp_icons_class_names, sp_icons_css_string) = {
@@ -110,7 +110,7 @@ fn traverse_root_dir_and_make_project_map(app_config: &AppConfig) -> HashMap<Str
                 e.file_name()
                 .to_str()
                 .map(|s| 
-                    !s.starts_with(".") &&
+                    !s.starts_with('.') &&
                     !app_config.irrelevant_dir_names.contains(&s) &&
                     (e.depth() != 1 || e.file_type().is_dir()))
                 .unwrap_or(false)
@@ -360,7 +360,7 @@ fn generate_html_page_as_string(
                 <span>Generated at:</span>
                 <span>{}</span>
             </div>
-    </div>", VERSION_ID, app_config.exec_date_time.format("%d/%m/%Y - %H:%M:%S").to_string());
+    </div>", VERSION_ID, app_config.exec_date_time.format("%d/%m/%Y - %H:%M:%S"));
 
     html +=
     "<div id='copy-notification' class='fade'>
@@ -371,7 +371,7 @@ fn generate_html_page_as_string(
         if app_config.sp_icons_file_spec.selected_abs_dir.is_none() {
             return Err(anyhow!("sp-icons file path should be set but it isn't (this is a bug)".red()));
         }
-        let sp_icons_html_string = generate_html_string_from_classes(&app_config.sp_icons_file_spec, "sp-icons", "sp-icons-", "svg", &sp_icons_class_names);
+        let sp_icons_html_string = generate_html_string_from_classes(&app_config.sp_icons_file_spec, "sp-icons", "sp-icons-", "svg", sp_icons_class_names);
         html += &sp_icons_html_string;
     }
 
@@ -379,7 +379,7 @@ fn generate_html_page_as_string(
         if app_config.font_awesome_file_spec.selected_abs_dir.is_none() {
             return Err(anyhow!("font-awesome file path should be set but it isn't (this is a bug)".red()));
         }
-        let font_awesome_html_string = generate_html_string_from_classes(&app_config.font_awesome_file_spec, "fa", "fa-", "svg", &font_awesome_class_names);
+        let font_awesome_html_string = generate_html_string_from_classes(&app_config.font_awesome_file_spec, "fa", "fa-", "svg", font_awesome_class_names);
         html += &font_awesome_html_string;
     }
 
@@ -411,7 +411,7 @@ fn generate_html_page_as_string(
     </footer>";
     
     html += "</div></body>";
-    html += &get_css_string(&sp_icons_css_string, &font_awesome_css_string);
+    html += &get_css_string(sp_icons_css_string, font_awesome_css_string);
     html += &get_javascript_string(app_config);
     html += "</html>";
 
@@ -722,11 +722,11 @@ fn get_css_string(sp_icons_css_string: &String, font_awesome_css_string: &String
         \n\n");
     if !sp_icons_css_string.is_empty() {
         css += "/*===================>  SP ICONS AREA <===================*/\n\n";
-        css += &sp_icons_css_string;
+        css += sp_icons_css_string;
     }
     if !font_awesome_css_string.is_empty() {
         css += "/*===================>  FONT AWESOME AREA <===================*/\n\n";
-        css += &font_awesome_css_string;
+        css += font_awesome_css_string;
     }
     css += "</style>";
 
@@ -757,7 +757,7 @@ fn parse_special_file( file_spec: &mut ParsableFileSpec, projects_map: &HashMap<
     if !has_found_valid_path {
         return Ok(None);
     } else {
-        file_spec.selected_abs_dir = Some(found_file_dir.clone());
+        file_spec.selected_abs_dir = Some(found_file_dir);
     }
 
     let reader = BufReader::new(File::open(&found_file_path).context(
@@ -778,7 +778,7 @@ fn parse_css_file(file_spec: &ParsableFileSpec, reader: BufReader<File>) -> anyh
             let relative_path_start = start_index + index + 5;
             if let Some(index_end) = &line[relative_path_start..].find("')") {
                 let relative_path_end = relative_path_start + index_end;
-                let absolute_path = join_paths(&file_spec.selected_abs_dir.as_ref().unwrap(), &line[relative_path_start..relative_path_end], "/");
+                let absolute_path = join_paths(file_spec.selected_abs_dir.as_ref().unwrap(), &line[relative_path_start..relative_path_end], "/");
                 line.replace_range(relative_path_start..relative_path_end, &absolute_path);
                 start_index = relative_path_end + 2;
             } else {
@@ -840,7 +840,7 @@ fn parse_args() -> anyhow::Result<Option<CommandLineArgs>> {
 
     let (mut dir, mut target, mut name, mut is_basic, mut no_browser) = (None, None, None, false, false);
     for command in commands {
-        let (command_name, arguments) = match command.find(" ") {
+        let (command_name, arguments) = match command.find(' ') {
             Some(index) => command.split_at(index),
             None => (command.trim(), "")
         };
@@ -898,7 +898,7 @@ pub fn get_trimmed_if_not_empty(str: &str) -> Option<String> {
 
 fn join_paths(base_absolute_path: &str, relative_path: &str, connective_str: &str) -> String {
     let concated = format!("{}{}{}", base_absolute_path, connective_str, relative_path);
-    concated.replace("\\", "/").to_owned()
+    concated.replace("\\", "/")
 }
 
 fn convert_to_absolute(s: &str) -> String {
@@ -922,7 +922,7 @@ fn open_generated_file_in_the_browser(app_config: &AppConfig) {
     if cfg!(target_os = "windows") {
         // Windows command
         Command::new("cmd")
-            .args(&["/C", "start", "", &app_config.output_file_path])
+            .args(["/C", "start", "", &app_config.output_file_path])
             .spawn()
             .expect("Failed to open HTML file in the browser");
     } else if cfg!(target_os = "macos") {
@@ -1001,10 +1001,7 @@ impl <'a> ParsableFileSpec <'a>  {
     fn new(title: &'a str, name: &'a str, extension: &'a str, known_abs_dir: String, relative_dir: Option<&'a str>, approximate_size_bytes: usize, 
             parser_fn: fn(&Self, BufReader<File>) -> anyhow::Result<(Vec<String>, String)>) -> Self {
         let known_abs_path = format!("{}/{}.{}", known_abs_dir, name, extension);
-        let relative_path = match &relative_dir {
-            Some(dir) => Some(format!("{}/{}.{}", dir, name, extension)),
-            None => None,
-        };
+        let relative_path = relative_dir.map(|dir| format!("{}/{}.{}", dir, name, extension));
         Self {
             title,
             name,
@@ -1022,6 +1019,7 @@ impl <'a> ParsableFileSpec <'a>  {
 
 #[derive(Debug, Default, Clone)]
 struct ProjectDir {
+    #[allow(dead_code)]
     pub name: String,
     pub path: String,
     pub images: Vec<Img>,
